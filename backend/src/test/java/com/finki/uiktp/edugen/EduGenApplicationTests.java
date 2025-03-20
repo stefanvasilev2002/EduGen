@@ -1,4 +1,4 @@
-package com.finki.uiktp.eduqa_generator.eduqa;
+package com.finki.uiktp.edugen;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
