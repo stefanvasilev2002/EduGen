@@ -1,0 +1,25 @@
+# Java
+*.class
+*.jar
+*.war
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Node
+node_modules/
+npm-debug.log
+build/
+dist/
+coverage/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.sublime-*
+.DS_Store
+
+# Docker
+*.env
