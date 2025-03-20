@@ -8,10 +8,10 @@
 		<version>3.4.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.finki.uiktp.eduqa-generator</groupId>
-	<artifactId>eduqa</artifactId>
+	<groupId>com.finki.uiktp.edugen</groupId>
+	<artifactId>edugen</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>eduqa</name>
+	<name>edugen</name>
 	<description>UIKTP</description>
 	<url/>
 	<licenses>
