@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/backend/edugen.iml" filepath="$PROJECT_DIR$/backend/edugen.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/EduGen.iml" filepath="$PROJECT_DIR$/.idea/EduGen.iml" />
+      <module fileurl="file://$PROJECT_DIR$/backend/eduqa.iml" filepath="$PROJECT_DIR$/backend/eduqa.iml" />
     </modules>
   </component>
 </project>
