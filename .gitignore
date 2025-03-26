@@ -20,6 +20,6 @@ coverage/
 .vscode/
 *.sublime-*
 .DS_Store
-
+.idea
 # Docker
 *.env
