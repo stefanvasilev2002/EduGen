@@ -2,40 +2,37 @@ package com.finki.uiktp.edugen.model;
 
 import com.finki.uiktp.edugen.model.enums.Role;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter
-@Setter
+@Data
 @Table(name = "app_user")
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long user_id;
+    private Long id;
 
     @Column(nullable = false)
     private String username;
 
-    @Column(nullable = false)
+    @Column
     private LocalDate dateOfBirth;
-
-    @Column(nullable = false)
-    private String phoneNumber;
 
     @Column(unique = true, nullable = false)
     private String email;
+
+    @Column
+    private String phoneNumber;
 
     @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    private Role role; // ADMIN, TEACHER, STUDENT, EDUCATIONAL_INSTITUTION
-
+    private Role role;
 
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<Document> documents = new ArrayList<>();

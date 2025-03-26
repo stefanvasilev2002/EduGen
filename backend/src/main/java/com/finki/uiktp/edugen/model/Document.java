@@ -3,19 +3,18 @@ package com.finki.uiktp.edugen.model;
 import com.finki.uiktp.edugen.model.enums.DocumentFormat;
 import com.finki.uiktp.edugen.model.enums.DocumentType;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Getter
-@Setter
+@Data
 public class Document {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long document_id;
+    private Long id;
 
     @ManyToOne
     private User user;
@@ -38,6 +37,8 @@ public class Document {
     @Column(nullable = false)
     private String filePath;
 
+    @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Question> questions = new ArrayList<>();
 
     public Document() {
 
