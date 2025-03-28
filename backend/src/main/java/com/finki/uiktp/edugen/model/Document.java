@@ -29,10 +29,10 @@ public class Document {
     private String language;
 
     @Enumerated(EnumType.STRING)
-    private DocumentType type; //TEXTBOOK, SCRIPT ,LECTURE ,RESEARCH ,OTHER
+    private DocumentType type;
 
     @Enumerated(EnumType.STRING)
-    private DocumentFormat format; //PDF, DOCX, TXT
+    private DocumentFormat format;
 
     @Column(nullable = false)
     private String filePath;
@@ -44,14 +44,15 @@ public class Document {
 
     }
 
-    public Document(User user, String title, LocalDateTime uploadedDate, String language, DocumentType type, DocumentFormat format, String filePath) {
+    public Document(User user, String title, String language, DocumentType type, DocumentFormat format, String filePath) {
         this.user = user;
         this.title = title;
-        this.uploadedDate = uploadedDate;
+        this.uploadedDate = LocalDateTime.now();
         this.language = language;
         this.type = type;
         this.format = format;
         this.filePath = filePath;
-    }
+        this.questions = new ArrayList<>();
 
+    }
 }
