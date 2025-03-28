@@ -27,11 +27,13 @@ public class Question {
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Answer> answers = new ArrayList<>();
 
-    public Question() {}
+    public Question() {
+    }
 
     public Question(Document document, String text, QuestionType type) {
         this.document = document;
         this.text = text;
         this.type = type;
     }
+
 }

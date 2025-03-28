@@ -22,7 +22,8 @@ public class Answer {
     @Column(nullable = false)
     private boolean isCorrect;
 
-    public Answer() {}
+    public Answer() {
+    }
 
     public Answer(Question question, String text, boolean isCorrect) {
         this.question = question;
