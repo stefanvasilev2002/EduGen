@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect, useRef } from 'react';
+import {TestService} from "../../services";
 
 function TestConnection() {
     const [backendStatus, setBackendStatus] = useState('Checking backend connection...');
@@ -7,19 +7,29 @@ function TestConnection() {
     const [backendError, setBackendError] = useState(null);
     const [dbError, setDbError] = useState(null);
 
+    const requestsMadeRef = useRef(false);
+
     useEffect(() => {
+        if (requestsMadeRef.current) return;
+
+        console.log('Testing connection via service layer...');
+        requestsMadeRef.current = true;
+
         // Test backend connection
-        axios.get('/api/test')
+        TestService.testConnection()
             .then(response => {
+                console.log('Backend response:', response.data);
                 setBackendStatus('Connected to backend: ' + response.data.message);
             })
             .catch(err => {
+                console.error('Backend error:', err);
                 setBackendError('Failed to connect to backend: ' + err.message);
             });
 
         // Test database connection
-        axios.get('/api/test/db')
+        TestService.testDatabaseConnection()
             .then(response => {
+                console.log('Database response:', response.data);
                 if (response.data.status === 'success') {
                     setDbStatus(`Database connected! Entity created with ID ${response.data.entityId}. Total entities: ${response.data.entityCount}`);
                 } else {
@@ -27,6 +37,7 @@ function TestConnection() {
                 }
             })
             .catch(err => {
+                console.error('Database error:', err);
                 setDbError('Failed to test database connection: ' + err.message);
             });
     }, []);
