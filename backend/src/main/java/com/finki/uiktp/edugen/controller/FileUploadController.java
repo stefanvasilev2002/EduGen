@@ -1,5 +1,6 @@
 package com.finki.uiktp.edugen.controller;
 
+import com.finki.uiktp.edugen.model.dto.DocumentDTO;
 import com.finki.uiktp.edugen.model.Document;
 import com.finki.uiktp.edugen.model.enums.DocumentFormat;
 import com.finki.uiktp.edugen.model.enums.DocumentType;
@@ -70,7 +71,7 @@ public class FileUploadController {
         }
 
         try {
-            String uniqueFilename = UUID.randomUUID().toString() + "_" + originalFilename;
+            String uniqueFilename = UUID.randomUUID() + "_" + originalFilename;
             Path filePath = Paths.get(UPLOAD_DIR + uniqueFilename);
 
             Files.copy(file.getInputStream(), filePath);
@@ -85,10 +86,13 @@ public class FileUploadController {
                     filePath.toString()
             );
 
+            DocumentDTO documentDTO = DocumentDTO.fromEntity(document);
+
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Document uploaded successfully");
-            response.put("documentId", document.getId());
-            response.put("filePath", filePath.toString());
+            response.put("documentId", documentDTO.getId());
+            response.put("document", documentDTO);
+            response.put("filePath", documentDTO.getFilePath());
 
             return ResponseEntity.ok(response);
 

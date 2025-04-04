@@ -5,6 +5,7 @@ import {
     FiUpload,
     FiActivity,
 } from 'react-icons/fi';
+import { DocumentService } from '../services';
 
 const Dashboard = () => {
     const [stats, setStats] = useState({
@@ -13,31 +14,36 @@ const Dashboard = () => {
     });
 
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 setIsLoading(true);
+                setError(null);
 
-                // In production, you would use real API calls
-                // For now, we'll use simulated data
+                const documentsResponse = await DocumentService.getAll();
+                const documents = documentsResponse.data || [];
 
-                // Simulated data for demonstration
-                setTimeout(() => {
-                    setStats({
-                        totalDocuments: 4,
-                        recentDocuments: [
-                            { id: 1, title: 'Spring Boot Introduction', uploadedDate: '2023-05-15T10:30:00', format: 'PDF' },
-                            { id: 2, title: 'Web Development Fundamentals', uploadedDate: '2023-05-12T14:20:00', format: 'DOCX' },
-                            { id: 3, title: 'Database Systems Overview', uploadedDate: '2023-05-10T09:15:00', format: 'PDF' },
-                            { id: 4, title: 'React State Management', uploadedDate: '2023-05-08T16:45:00', format: 'TXT' }
-                        ]
-                    });
-                    setIsLoading(false);
-                }, 1000);
+                const recentDocumentsResponse = await DocumentService.getRecentDocuments(5);
+                const recentDocuments = recentDocumentsResponse.data || [];
+
+                setStats({
+                    totalDocuments: documents.length,
+                    recentDocuments: recentDocuments
+                });
+
+                console.log(documents)
+                setIsLoading(false);
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
+                setError('Failed to load dashboard data. Please try again later.');
                 setIsLoading(false);
+
+                setStats({
+                    totalDocuments: 0,
+                    recentDocuments: []
+                });
             }
         };
 
@@ -61,18 +67,27 @@ const Dashboard = () => {
         }
     ];
 
+    const formatDate = (dateString) => {
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        } catch (e) {
+            return 'Invalid date';
+        }
+    };
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-                <Link
-                    to="/documents"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-                >
-                    <FiUpload className="mr-2 h-4 w-4" />
-                    Upload New Document
-                </Link>
+
             </div>
+
+            {error && (
+                <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+                    {error}
+                </div>
+            )}
 
             {isLoading ? (
                 <div className="flex justify-center items-center h-64">
@@ -158,15 +173,21 @@ const Dashboard = () => {
                           </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {new Date(document.uploadedDate).toLocaleDateString()}
+                                                {formatDate(document.uploadedDate)}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <a href="#" className="text-blue-600 hover:text-blue-900 mr-3">
+                                                <button
+                                                    onClick={() => {/* View document implementation */}}
+                                                    className="text-blue-600 hover:text-blue-900 mr-3"
+                                                >
                                                     View
-                                                </a>
-                                                <a href="#" className="text-red-600 hover:text-red-900">
+                                                </button>
+                                                <button
+                                                    onClick={() => {/* Delete document implementation */}}
+                                                    className="text-red-600 hover:text-red-900"
+                                                >
                                                     Delete
-                                                </a>
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}

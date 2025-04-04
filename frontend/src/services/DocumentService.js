@@ -18,7 +18,6 @@ class DocumentService extends BaseApiService {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Append all metadata fields to the form data
         Object.keys(metadata).forEach(key => {
             formData.append(key, metadata[key]);
         });
@@ -26,6 +25,10 @@ class DocumentService extends BaseApiService {
         return this.withRetry(() => this.request('post', '/upload', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
+            },
+            onUploadProgress: progressEvent => {
+                const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                console.log(`Upload progress: ${percentCompleted}%`);
             }
         }));
     }
@@ -64,6 +67,15 @@ class DocumentService extends BaseApiService {
      */
     searchByTitle(query) {
         return this.getAll({ title: query });
+    }
+
+    /**
+     * Delete a document
+     * @param {number} id - Document ID
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    deleteDocument(id) {
+        return this.delete(id);
     }
 
     /**

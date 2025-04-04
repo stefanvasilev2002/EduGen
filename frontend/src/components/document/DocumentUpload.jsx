@@ -1,9 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import axios from 'axios';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertTriangle, FiTrash } from 'react-icons/fi';
+import { DocumentService } from '../../services';
 
-// Maximum file size in bytes (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const DocumentUpload = () => {
@@ -79,23 +78,13 @@ const DocumentUpload = () => {
         setUploadStatus(null);
         setErrorMessage('');
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('userId', 1);
-        formData.append('title', documentMetadata.title);
-        formData.append('language', documentMetadata.language);
-        formData.append('type', documentMetadata.type);
-        formData.append('format', documentMetadata.format);
-
         try {
-            await axios.post('/documents/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                },
-                onUploadProgress: (progressEvent) => {
-                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-                    setUploadProgress(percentCompleted);
-                }
+            await DocumentService.uploadDocument(file, {
+                userId: 1, // Replace with actual user ID from context/state
+                title: documentMetadata.title,
+                language: documentMetadata.language,
+                type: documentMetadata.type,
+                format: documentMetadata.format
             });
 
             setUploadStatus('success');
@@ -108,6 +97,7 @@ const DocumentUpload = () => {
                 error.response?.data?.message ||
                 'An error occurred while uploading the file. Please try again.'
             );
+            console.error('Upload error:', error);
         } finally {
             setIsUploading(false);
         }
