@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
-import DocumentPage from "./pages/documents/DocumentsPage";
+import DocumentsPage from "./pages/documents/DocumentsPage";
+import DocumentEdit from './components/document/DocumentEdit';
 import './App.css';
 import TestConnection from "./components/test/TestConnection";
 
@@ -12,16 +13,26 @@ function App() {
             <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-                {/* Dashboard and document routes */}
+                {/* Dashboard route */}
                 <Route path="/dashboard" element={
                     <DashboardLayout>
                         <Dashboard />
                     </DashboardLayout>
                 } />
 
+                {/* Document routes */}
                 <Route path="/documents" element={
                     <DashboardLayout>
-                        <DocumentPage />
+                        <DocumentsPage />
+                    </DashboardLayout>
+                }>
+                    <Route path="upload" element={null} />
+                </Route>
+
+                {/* Document edit route */}
+                <Route path="/documents/edit/:id" element={
+                    <DashboardLayout>
+                        <DocumentEdit />
                     </DashboardLayout>
                 } />
 
