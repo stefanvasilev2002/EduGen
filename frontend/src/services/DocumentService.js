@@ -34,6 +34,59 @@ class DocumentService extends BaseApiService {
     }
 
     /**
+     * Update a document - special method to match backend expectations
+     * @param {string|number} id - Document ID
+     * @param {URLSearchParams} params - Document parameters
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    updateDocument(id, params) {
+        return this.withRetry(() => this.request('put', `/${id}`, null, {
+            params,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        }));
+    }
+
+    /**
+     * Download a document
+     * @param {string|number} id - Document ID
+     * @returns {Promise} - Promise that resolves with the API response containing a blob
+     */
+    downloadDocument(id) {
+        return this.withRetry(() => this.request('get', `/${id}/download`, null, {
+            responseType: 'blob'
+        }));
+    }
+
+    /**
+     * Get document content for preview
+     * @param {string|number} id - Document ID
+     * @returns {Promise} - Promise that resolves with the API response containing the document content
+     */
+    getDocumentContent(id) {
+        return this.withRetry(() => this.request('get', `/${id}/content`));
+    }
+
+    /**
+     * View document in browser
+     * @param {string|number} id - Document ID
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    viewDocument(id) {
+        return this.withRetry(() => this.request('get', `/${id}/view`));
+    }
+
+    /**
+     * Get document metadata
+     * @param {string|number} id - Document ID
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    getDocumentMetadata(id) {
+        return this.withRetry(() => this.request('get', `/${id}/metadata`));
+    }
+
+    /**
      * Get recent documents
      * @param {number} limit - Maximum number of documents to return
      * @returns {Promise} - Promise that resolves with the API response

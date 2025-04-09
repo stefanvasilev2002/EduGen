@@ -80,7 +80,7 @@ const DocumentUpload = () => {
 
         try {
             await DocumentService.uploadDocument(file, {
-                userId: 1, // Replace with actual user ID from context/state
+                userId: 1,
                 title: documentMetadata.title,
                 language: documentMetadata.language,
                 type: documentMetadata.type,
@@ -90,7 +90,7 @@ const DocumentUpload = () => {
             setUploadStatus('success');
             setTimeout(() => {
                 resetForm();
-            }, 3000);
+            }, 2000);
         } catch (error) {
             setUploadStatus('error');
             setErrorMessage(
