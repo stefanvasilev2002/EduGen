@@ -1,198 +1,210 @@
 package com.finki.uiktp.edugen.controller;
 
-import com.finki.uiktp.edugen.model.dto.DocumentDTO;
+import com.finki.uiktp.edugen.config.UserPrincipal;
 import com.finki.uiktp.edugen.model.Document;
 import com.finki.uiktp.edugen.model.Exceptions.DocumentNotFoundException;
+import com.finki.uiktp.edugen.model.Exceptions.UserNotFoundException;
+import com.finki.uiktp.edugen.model.User;
 import com.finki.uiktp.edugen.model.enums.DocumentFormat;
 import com.finki.uiktp.edugen.model.enums.DocumentType;
+import com.finki.uiktp.edugen.repository.UserRepository;
 import com.finki.uiktp.edugen.service.DocumentService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/documents")
-@CrossOrigin(origins = "*")
+@RequestMapping("/api/documents")
 public class DocumentController {
 
     private final DocumentService documentService;
+    private final UserRepository userRepository;
+    private final String UPLOAD_DIR = "uploads";
 
-    public DocumentController(DocumentService documentService) {
+    public DocumentController(DocumentService documentService, UserRepository userRepository) {
         this.documentService = documentService;
+        this.userRepository = userRepository;
+
+        new java.io.File(UPLOAD_DIR).mkdirs();
     }
 
-    /**
-     * Get all documents with optional filtering
-     */
     @GetMapping
-    public List<DocumentDTO> findAll(
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String language,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String format,
-            @RequestParam(required = false) String sort,
-            @RequestParam(required = false, defaultValue = "10") Integer limit) {
+    public ResponseEntity<List<Map<String, Object>>> getAllDocuments(Authentication authentication) {
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
 
-        List<Document> documents = this.documentService.listAll();
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
-        if (title != null && !title.isEmpty()) {
-            documents = documents.stream()
-                    .filter(doc -> doc.getTitle().toLowerCase().contains(title.toLowerCase()))
-                    .collect(Collectors.toList());
-        }
+        List<Document> documents = user.getDocuments();
 
-        if (language != null && !language.isEmpty()) {
-            documents = documents.stream()
-                    .filter(doc -> doc.getLanguage().equals(language))
-                    .collect(Collectors.toList());
-        }
-
-        if (type != null && !type.isEmpty()) {
-            try {
-                DocumentType documentType = DocumentType.valueOf(type.toUpperCase());
-                documents = documents.stream()
-                        .filter(doc -> doc.getType() == documentType)
-                        .collect(Collectors.toList());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        if (format != null && !format.isEmpty()) {
-            try {
-                DocumentFormat documentFormat = DocumentFormat.valueOf(format.toUpperCase());
-                documents = documents.stream()
-                        .filter(doc -> doc.getFormat() == documentFormat)
-                        .collect(Collectors.toList());
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-
-        if (sort != null && !sort.isEmpty()) {
-            boolean descending = sort.contains("desc");
-            String sortField = sort.split(",")[0];
-
-            switch (sortField) {
-                case "title":
-                    documents = descending
-                            ? documents.stream().sorted((d1, d2) -> d2.getTitle().compareTo(d1.getTitle())).collect(Collectors.toList())
-                            : documents.stream().sorted(Comparator.comparing(Document::getTitle)).collect(Collectors.toList());
-                    break;
-                case "uploadedDate":
-                    documents = descending
-                            ? documents.stream().sorted((d1, d2) -> d2.getUploadedDate().compareTo(d1.getUploadedDate())).collect(Collectors.toList())
-                            : documents.stream().sorted(Comparator.comparing(Document::getUploadedDate)).collect(Collectors.toList());
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        if (limit > 0 && documents.size() > limit) {
-            documents = documents.subList(0, limit);
-        }
-
-        return documents.stream()
-                .map(DocumentDTO::fromEntity)
+        List<Map<String, Object>> result = documents.stream()
+                .map(this::convertDocumentToMap)
                 .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
     }
 
-    /**
-     * Get document by ID
-     */
     @GetMapping("/{id}")
-    public ResponseEntity<DocumentDTO> findById(@PathVariable Long id) {
-        return this.documentService.findById(id)
-                .map(DocumentDTO::fromEntity)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Find document by title
-     */
-    @GetMapping("/title/{title}")
-    public ResponseEntity<DocumentDTO> findByTitle(@PathVariable String title) {
-        return this.documentService.findByTitle(title)
-                .map(DocumentDTO::fromEntity)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
-
-    /**
-     * Create a new document
-     */
-    @PostMapping
-    public ResponseEntity<DocumentDTO> create(
-            @RequestParam Long userId,
-            @RequestParam String title,
-            @RequestParam String language,
-            @RequestParam String type,
-            @RequestParam String format,
-            @RequestParam String filePath) {
-
-        try {
-            DocumentType documentType = DocumentType.valueOf(type.toUpperCase());
-            DocumentFormat documentFormat = DocumentFormat.valueOf(format.toUpperCase());
-
-            Document document = this.documentService.create(userId, title, LocalDateTime.now(),
-                    language, documentType, documentFormat, filePath);
-            return ResponseEntity.ok(DocumentDTO.fromEntity(document));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        }
-    }
-
-    /**
-     * Update an existing document
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<DocumentDTO> update(
+    public ResponseEntity<Map<String, Object>> getDocumentById(
             @PathVariable Long id,
-            @RequestParam String title,
-            @RequestParam String language,
-            @RequestParam String type,
-            @RequestParam String format,
-            @RequestParam String filePath) {
+            Authentication authentication) {
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
+
+        Document document = documentService.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (!document.getUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(convertDocumentToMap(document));
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<Map<String, Object>> uploadDocument(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("title") String title,
+            @RequestParam("language") String language,
+            @RequestParam("type") String documentType,
+            Authentication authentication) {
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
 
         try {
-            DocumentType documentType = DocumentType.valueOf(type.toUpperCase());
-            DocumentFormat documentFormat = DocumentFormat.valueOf(format.toUpperCase());
+            String originalFilename = file.getOriginalFilename();
+            String extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1);
+            String newFilename = UUID.randomUUID() + "." + extension;
 
-            Document document = this.documentService.findById(id)
-                    .orElseThrow(() -> new DocumentNotFoundException(id));
+            Path filePath = Paths.get(UPLOAD_DIR, newFilename);
+            Files.write(filePath, file.getBytes());
 
-            return this.documentService.update(id, title, language, documentType, documentFormat, filePath)
-                    .map(DocumentDTO::fromEntity)
-                    .map(ResponseEntity::ok)
-                    .orElseGet(() -> ResponseEntity.notFound().build());
-        } catch (DocumentNotFoundException e) {
-            return ResponseEntity.notFound().build();
+            DocumentType type = DocumentType.valueOf(documentType);
+            DocumentFormat format = DocumentFormat.valueOf(extension.toUpperCase());
+
+            Document document = documentService.create(
+                    userId,
+                    title,
+                    LocalDateTime.now(),
+                    language,
+                    type,
+                    format,
+                    filePath.toString()
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(convertDocumentToMap(document));
+
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
-        } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
     }
 
-    /**
-     * Delete a document
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteById(@PathVariable Long id) {
-        try {
-            this.documentService.findById(id)
-                    .orElseThrow(() -> new DocumentNotFoundException(id));
+    @PutMapping("/{id}")
+    public ResponseEntity<Map<String, Object>> updateDocument(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> updateData,
+            Authentication authentication) {
 
-            this.documentService.delete(id);
-            return ResponseEntity.ok().build();
-        } catch (DocumentNotFoundException e) {
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
+
+        Document document = documentService.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (!document.getUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+
+        String title = updateData.get("title");
+        String language = updateData.get("language");
+        DocumentType type = DocumentType.valueOf(updateData.get("type"));
+        DocumentFormat format = document.getFormat();
+
+        return documentService.update(id, userId, title, language, type, format)
+                .map(updatedDoc -> ResponseEntity.ok(convertDocumentToMap(updatedDoc)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDocument(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
+
+        Document document = documentService.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (!document.getUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        documentService.delete(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<byte[]> downloadDocument(
+            @PathVariable Long id,
+            Authentication authentication) {
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = userPrincipal.getId();
+
+        Document document = documentService.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
+
+        if (!document.getUser().getId().equals(userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        try {
+            Path filePath = Paths.get(document.getFilePath());
+            byte[] fileContent = Files.readAllBytes(filePath);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.CONTENT_DISPOSITION,
+                    "attachment; filename=" + document.getTitle() + "." +
+                            document.getFormat().toString().toLowerCase());
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(fileContent);
+
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    private Map<String, Object> convertDocumentToMap(Document document) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", document.getId());
+        map.put("title", document.getTitle());
+        map.put("uploadedDate", document.getUploadedDate());
+        map.put("language", document.getLanguage());
+        map.put("type", document.getType().name());
+        map.put("format", document.getFormat().name());
+        return map;
     }
 }
