@@ -11,6 +11,10 @@ import com.finki.uiktp.edugen.repository.UserRepository;
 import com.finki.uiktp.edugen.service.DocumentService;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -66,7 +70,18 @@ public class DocumentServiceImplementation implements DocumentService {
 
     @Override
     public Document delete(Long id) {
-        Document document = this.documentRepository.findById(id).orElseThrow(() -> new DocumentNotFoundException(id));
+        Document document = this.documentRepository.findById(id)
+                .orElseThrow(() -> new DocumentNotFoundException(id));
+
+        try {
+            Path filePath = Paths.get(document.getFilePath());
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to delete file: " + document.getFilePath() + " - " + e.getMessage());
+        }
+
         this.documentRepository.delete(document);
         return document;
     }
