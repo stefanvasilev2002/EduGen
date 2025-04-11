@@ -1,5 +1,6 @@
 package com.finki.uiktp.edugen;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -7,6 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class EduGenApplication {
 
 	public static void main(String[] args) {
+		Dotenv dotenv = Dotenv.load();
+		System.setProperty("JWT_SECRET", dotenv.get("JWT_SECRET"));
+		System.setProperty("OPENAI_API_KEY", dotenv.get("OPENAI_API_KEY"));
 		SpringApplication.run(EduGenApplication.class, args);
 	}
 

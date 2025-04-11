@@ -91,14 +91,13 @@ const DocumentEdit = () => {
             setError(null);
             setSuccessMessage(null);
 
-            const params = new URLSearchParams();
-            params.append('title', formData.title);
-            params.append('language', formData.language);
-            params.append('type', formData.type);
-            params.append('format', formData.format);
-            params.append('filePath', document.filePath);
+            const updateData = {
+                title: formData.title,
+                language: formData.language,
+                type: formData.type
+            };
 
-            const response = await DocumentService.updateDocument(id, params);
+            const response = await DocumentService.updateDocument(id, updateData);
 
             setDocument(response.data);
             setSuccessMessage('Document updated successfully!');

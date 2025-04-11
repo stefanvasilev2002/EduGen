@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
 
 const api = axios.create({
     baseURL: BASE_URL,
@@ -13,13 +13,10 @@ const api = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        // Get token from localStorage (will be implemented once auth is ready)
         const token = localStorage.getItem('token');
-
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
-
         return config;
     },
     (error) => {
@@ -28,27 +25,14 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-    (response) => {
-        return response;
-    },
-    async (error) => {
-        const originalRequest = error.config;
-
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            // This will be implemented once auth is ready on backend
-            // For now, we'll just log the user out
-
-            originalRequest._retry = true;
-
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
             localStorage.removeItem('token');
+            localStorage.removeItem('user');
 
-            // window.location.href = '/login';
+            window.location.href = '/login';
         }
-
-        if (error.response?.status >= 500) {
-            console.error('Server error:', error.response?.data);
-        }
-
         return Promise.reject(error);
     }
 );

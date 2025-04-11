@@ -3,47 +3,62 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import DashboardLayout from './components/layout/DashboardLayout';
 import Dashboard from './pages/Dashboard';
 import DocumentsPage from "./pages/documents/DocumentsPage";
-import DocumentEdit from './components/document/DocumentEdit';
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+import PrivateRoute from './components/routing/PrivateRoute';
 import './App.css';
-import TestConnection from "./components/test/TestConnection";
+import DocumentEdit from "./components/document/DocumentEdit";
+import { AuthProvider } from './components/auth/AuthContext';
 
 function App() {
     return (
-        <Router>
-            <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    {/* Public Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
 
-                {/* Dashboard route */}
-                <Route path="/dashboard" element={
-                    <DashboardLayout>
-                        <Dashboard />
-                    </DashboardLayout>
-                } />
+                    {/* Private Routes */}
+                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-                {/* Document routes */}
-                <Route path="/documents" element={
-                    <DashboardLayout>
-                        <DocumentsPage />
-                    </DashboardLayout>
-                }>
-                    <Route path="upload" element={null} />
-                </Route>
+                    <Route path="/dashboard" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <Dashboard />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
 
-                {/* Document edit route */}
-                <Route path="/documents/edit/:id" element={
-                    <DashboardLayout>
-                        <DocumentEdit />
-                    </DashboardLayout>
-                } />
+                    <Route path="/documents" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <DocumentsPage />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
 
-                <Route path="/test" element={
-                    <TestConnection/>
-                } />
+                    <Route path="/documents/upload" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <DocumentsPage />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
 
-                {/* Fallback for unknown routes */}
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-        </Router>
+                    <Route path="/documents/edit/:id" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <DocumentEdit />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    {/* Fallback for unknown routes */}
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+            </Router>
+        </AuthProvider>
     );
 }
 

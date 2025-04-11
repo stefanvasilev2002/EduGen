@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     FiHome,
     FiFileText,
     FiMenu,
     FiX,
-    FiUser
+    FiUser,
+    FiLogOut
 } from 'react-icons/fi';
+import { AuthService } from '../../services';
 
 const DashboardLayout = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState(null);
     const location = useLocation();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const user = AuthService.getCurrentUser();
+        setCurrentUser(user);
+    }, []);
 
     const navItems = [
         { name: 'Dashboard', icon: <FiHome className="h-5 w-5" />, path: '/dashboard' },
@@ -20,6 +29,11 @@ const DashboardLayout = ({ children }) => {
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
     const isActive = (path) => location.pathname === path;
+
+    const handleLogout = () => {
+        AuthService.logout();
+        navigate('/login');
+    };
 
     return (
         <div className="flex h-screen bg-gray-100">
@@ -51,6 +65,30 @@ const DashboardLayout = ({ children }) => {
                                 </Link>
                             ))}
                         </nav>
+
+                        {/* User Profile Section */}
+                        <div className="mt-auto pt-4 border-t border-gray-200">
+                            {currentUser && (
+                                <div className="px-4 py-2">
+                                    <div className="flex items-center mb-3">
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3">
+                                            <FiUser className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-700">{currentUser.username}</p>
+                                            <p className="text-xs text-gray-500">{currentUser.email}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 hover:text-red-500 rounded-md transition-colors"
+                                    >
+                                        <FiLogOut className="mr-2" />
+                                        Logout
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -81,7 +119,7 @@ const DashboardLayout = ({ children }) => {
                     {/* Logo */}
                     <div className="flex items-center justify-center h-16 bg-blue-600 shadow-md">
                         <span className="text-white text-2xl font-bold tracking-wide">
-                            Edu<span className="text-yellow-300">Gen</span>
+                            Edu<span className="text-lime-400">Gen</span>
                         </span>
                     </div>
 
@@ -104,6 +142,30 @@ const DashboardLayout = ({ children }) => {
                                 </Link>
                             ))}
                         </nav>
+
+                        {/* User Profile Section */}
+                        {currentUser && (
+                            <div className="mt-auto pt-4 border-t border-gray-200">
+                                <div className="px-4 py-2">
+                                    <div className="flex items-center mb-3">
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3">
+                                            <FiUser className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-700">{currentUser.username}</p>
+                                            <p className="text-xs text-gray-500">{currentUser.email}</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center w-full px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 hover:text-red-500 rounded-md transition-colors"
+                                    >
+                                        <FiLogOut className="mr-2" />
+                                        Logout
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -129,8 +191,15 @@ const DashboardLayout = ({ children }) => {
                                 <FiUser className="h-4 w-4" />
                             </div>
                             <span className="hidden md:block text-sm font-medium text-gray-700">
-                                User
+                                {currentUser?.username || 'User'}
                             </span>
+                            <button
+                                onClick={handleLogout}
+                                className="text-gray-500 hover:text-red-500"
+                                title="Logout"
+                            >
+                                <FiLogOut className="h-5 w-5" />
+                            </button>
                         </div>
                     </div>
                 </div>
