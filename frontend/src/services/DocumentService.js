@@ -33,12 +33,6 @@ class DocumentService extends BaseApiService {
         }));
     }
 
-    /**
-     * Update a document - special method to match backend expectations
-     * @param {string|number} id - Document ID
-     * @param {URLSearchParams} params - Document parameters
-     * @returns {Promise} - Promise that resolves with the API response
-     */
     updateDocument(id, updateData) {
         const data = {};
         if (updateData instanceof URLSearchParams) {

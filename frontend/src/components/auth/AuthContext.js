@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, {createContext, useContext, useEffect, useState} from 'react';
 import {api, AuthService} from "../../services";
 
 const AuthContext = createContext();
@@ -71,8 +71,7 @@ export const AuthProvider = ({ children }) => {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await AuthService.register(userData);
-            return response;
+            return await AuthService.register(userData);
         } catch (err) {
             console.error('Register error:', err);
             setError(err.response?.data?.message || 'Failed to register. Please try again.');
