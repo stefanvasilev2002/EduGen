@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     FiSearch,
     FiChevronDown,
@@ -12,11 +12,17 @@ import {
     FiAlertCircle,
     FiUpload,
     FiDownload,
-    FiExternalLink
+    FiExternalLink, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 import { DocumentService } from '../../services';
+import { useAuth } from '../auth/AuthContext';
+import { Document, Page, pdfjs } from 'react-pdf';
 
 const DocumentList = ({ previewDocumentId, onClosePreview }) => {
+    const { isAuthenticated, currentUser } = useAuth();
+    const navigate = useNavigate();
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js`;
+
     const [documents, setDocuments] = useState([]);
     const [filteredDocuments, setFilteredDocuments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +44,18 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
     const [previewContent, setPreviewContent] = useState(null);
     const [previewMetadata, setPreviewMetadata] = useState(null);
     const [previewMode, setPreviewMode] = useState('info');
+
+    const [numPages, setNumPages] = useState(null);
+    const [pageNumber, setPageNumber] = useState(1);
+
     useEffect(() => {
-        if (previewDocumentId && !previewDocument) {
+        if (!isAuthenticated) {
+            navigate('/login', { state: { from: '/documents' } });
+        }
+    }, [isAuthenticated, navigate]);
+
+    useEffect(() => {
+        if (previewDocumentId && !previewDocument && documents.length > 0) {
             const docToPreview = documents.find(doc => doc.id === parseInt(previewDocumentId, 10));
             if (docToPreview) {
                 handlePreview(docToPreview);
@@ -48,8 +64,10 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
     }, [previewDocumentId, documents]);
 
     useEffect(() => {
-        fetchDocuments();
-    }, []);
+        if (isAuthenticated) {
+            fetchDocuments();
+        }
+    }, [isAuthenticated]);
 
     useEffect(() => {
         let result = [...documents];
@@ -86,6 +104,15 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
 
         setFilteredDocuments(result);
     }, [documents, searchQuery, selectedLanguage, selectedType, selectedFormat, sortConfig]);
+
+    useEffect(() => {
+        if (previewMode === 'view' && previewDocument?.format === 'PDF') {
+            const viewUrl = `${window.location.origin}/api/documents/${previewDocument.id}/view`;
+            console.log('PDF Viewer URL:', viewUrl);
+            console.log('Document ID:', previewDocument.id);
+            console.log('Full document object:', previewDocument);
+        }
+    }, [previewMode, previewDocument]);
 
     const fetchDocuments = async () => {
         try {
@@ -192,6 +219,10 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
                 setDocuments(documents.filter(doc => doc.id !== documentToDelete.id));
                 setShowDeleteModal(false);
                 setDocumentToDelete(null);
+
+                if (previewDocument && previewDocument.id === documentToDelete.id) {
+                    closePreview();
+                }
             } catch (err) {
                 console.error('Error deleting document:', err);
                 setError('Failed to delete document. Please try again.');
@@ -218,6 +249,7 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
             link.href = url;
 
             const contentDisposition = response.headers['content-disposition'];
+            console.log(contentDisposition)
             const filename = contentDisposition ?
                 contentDisposition.split('filename=')[1].replace(/"/g, '') :
                 `document-${documentId}`;
@@ -234,6 +266,7 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
             setError('Failed to download document. Please try again.');
         }
     };
+
     const getLanguageName = (code) => {
         const languageMap = {
             'en': 'English',
@@ -281,10 +314,30 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
         }
         return null;
     };
+    const onDocumentLoadSuccess = ({ numPages }) => {
+        setNumPages(numPages);
+        setPageNumber(1);
+    };
+
+    const changePage = (offset) => {
+        setPageNumber(prevPageNumber => prevPageNumber + offset);
+    };
+
+    const previousPage = () => {
+        changePage(-1);
+    };
+
+    const nextPage = () => {
+        changePage(1);
+    };
+    if (!isAuthenticated) {
+        return null;
+    }
+
 
     return (
         <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-2xl font-semibold mb-6 text-gray-800">Documents</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-gray-800">My Documents</h2>
 
             {/* Search and filters */}
             <div className="mb-6 flex flex-col lg:flex-row gap-4">
@@ -662,15 +715,54 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
                                         </div>
                                     )}
 
-                                    {/* Document Viewer */}
                                     {previewMode === 'view' && previewMetadata?.canView && (
                                         <div className="h-[600px] bg-gray-50 flex flex-col items-center justify-center">
                                             {previewDocument.format === 'PDF' ? (
-                                                <iframe
-                                                    src={`${window.location.origin}/api/documents/${previewDocument.id}/view`}
-                                                    className="w-full h-full border-0"
-                                                    title={`Preview of ${previewDocument.title}`}
-                                                />
+                                                <div className="w-full h-full flex flex-col">
+                                                    <div className="flex-grow overflow-auto flex justify-center">
+                                                        <Document
+                                                            file={`${window.location.origin}/api/documents/${previewDocument.id}/view`}
+                                                            onLoadSuccess={onDocumentLoadSuccess}
+                                                            loading={
+                                                                <div className="flex items-center justify-center h-64">
+                                                                    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500"></div>
+                                                                </div>
+                                                            }
+                                                            error={
+                                                                <div className="text-center text-red-500">
+                                                                    <p>Failed to load PDF. Please try downloading instead.</p>
+                                                                </div>
+                                                            }
+                                                        >
+                                                            <Page
+                                                                pageNumber={pageNumber}
+                                                                width={Math.min(800, window.innerWidth * 0.8)}
+                                                            />
+                                                        </Document>
+                                                    </div>
+
+                                                    {numPages > 1 && (
+                                                        <div className="flex items-center justify-center py-3 bg-white border-t">
+                                                            <button
+                                                                onClick={previousPage}
+                                                                disabled={pageNumber <= 1}
+                                                                className="p-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                <FiChevronLeft className="w-5 h-5" />
+                                                            </button>
+                                                            <span className="mx-4 text-sm">
+                                                                Page {pageNumber} of {numPages}
+                                                            </span>
+                                                            <button
+                                                                onClick={nextPage}
+                                                                disabled={pageNumber >= numPages}
+                                                                className="p-2 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            >
+                                                                <FiChevronRight className="w-5 h-5" />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             ) : previewDocument.format === 'TXT' ? (
                                                 <div className="w-full h-full bg-white p-4 overflow-auto">
                                                     <pre className="whitespace-pre-wrap">{previewContent}</pre>
@@ -707,7 +799,7 @@ const DocumentList = ({ previewDocumentId, onClosePreview }) => {
                                     <button
                                         onClick={() => {
                                             const baseUrl = window.location.origin;
-                                            window.open(`${baseUrl}/api/documents/${previewDocument.id}/view`, '_blank');
+                                            window.open(`${baseUrl}/documents/${previewDocument.id}/view`, '_blank');
                                         }}
                                         className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
                                     >

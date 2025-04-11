@@ -1,6 +1,5 @@
 package com.finki.uiktp.edugen.controller;
 
-import com.finki.uiktp.edugen.model.Answer;
 import com.finki.uiktp.edugen.model.Question;
 import com.finki.uiktp.edugen.model.enums.QuestionType;
 import com.finki.uiktp.edugen.service.QuestionService;

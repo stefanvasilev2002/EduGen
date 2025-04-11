@@ -1,9 +1,19 @@
 import api from './api.config';
 
 const AuthService = {
+    register: async (userData) => {
+        try {
+            console.log("Register data being sent:", JSON.stringify(userData));
+            const response = await api.post('/auth/register', userData);
+            return response.data;
+        } catch (error) {
+            console.error('Register error details:', error.response?.data);
+            throw error;
+        }
+    },
     login: async (credentials) => {
         try {
-            const response = await api.post('/api/auth/login', credentials);
+            const response = await api.post('/auth/login', credentials);
             if (response.data.token) {
                 localStorage.setItem('token', response.data.token);
                 localStorage.setItem('user', JSON.stringify(response.data));
@@ -14,18 +24,6 @@ const AuthService = {
             throw error;
         }
     },
-
-    register: async (userData) => {
-        try {
-            console.log("Register data being sent:", JSON.stringify(userData));
-            const response = await api.post('/api/auth/register', userData);
-            return response.data;
-        } catch (error) {
-            console.error('Register error details:', error.response?.data);
-            throw error;
-        }
-    },
-
     logout: () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');

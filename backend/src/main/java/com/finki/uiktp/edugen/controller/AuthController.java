@@ -19,7 +19,6 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@RequestBody RegisterRequest request) {
         try {
-            System.out.println("Register request received: " + request);
             AuthResponse response = authService.register(request);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -30,11 +29,6 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest request) {
         try {
-            System.out.println("Login request received: " + request);
-            System.out.println("Email: " + (request != null ? request.getEmail() : "null"));
-            System.out.println("Password: " + (request != null ? "[PASSWORD LENGTH: " +
-                    (request.getPassword() != null ? request.getPassword().length() : 0) + "]" : "null"));
-
             AuthResponse response = authService.login(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {

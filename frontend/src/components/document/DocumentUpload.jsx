@@ -2,10 +2,15 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { FiUpload, FiFile, FiCheckCircle, FiAlertTriangle, FiTrash } from 'react-icons/fi';
 import { DocumentService } from '../../services';
+import { useAuth } from '../auth/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-const DocumentUpload = () => {
+const DocumentUpload = ({ onUploadSuccess }) => {
+    const { currentUser, isAuthenticated } = useAuth();
+    const navigate = useNavigate();
+
     const [file, setFile] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadStatus, setUploadStatus] = useState(null);
@@ -17,6 +22,12 @@ const DocumentUpload = () => {
         type: 'LECTURE',
         format: 'PDF'
     });
+
+    React.useEffect(() => {
+        if (!isAuthenticated) {
+            navigate('/login', { state: { from: '/documents/upload' } });
+        }
+    }, [isAuthenticated, navigate]);
 
     const onDrop = useCallback(acceptedFiles => {
         setUploadProgress(0);
@@ -39,6 +50,7 @@ const DocumentUpload = () => {
         }
 
         setFile(selectedFile);
+        console.log(selectedFile.name.split('.')[0])
         setDocumentMetadata({
             ...documentMetadata,
             title: selectedFile.name.split('.')[0],
@@ -74,22 +86,42 @@ const DocumentUpload = () => {
             return;
         }
 
+        if (!currentUser) {
+            setErrorMessage('You must be logged in to upload documents.');
+            setUploadStatus('error');
+            return;
+        }
+
         setIsUploading(true);
         setUploadStatus(null);
         setErrorMessage('');
 
+        const onUploadProgressHandler = (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+        };
+
         try {
-            await DocumentService.uploadDocument(file, {
-                userId: 1,
-                title: documentMetadata.title,
-                language: documentMetadata.language,
-                type: documentMetadata.type,
-                format: documentMetadata.format
-            });
+            const response = await DocumentService.uploadDocument(
+                file,
+                {
+                    title: documentMetadata.title,
+                    language: documentMetadata.language,
+                    type: documentMetadata.type,
+                    format: documentMetadata.format
+                },
+                onUploadProgressHandler
+            );
 
             setUploadStatus('success');
+
+            if (onUploadSuccess) {
+                onUploadSuccess(response.data);
+            }
+
             setTimeout(() => {
                 resetForm();
+                navigate('/documents');
             }, 2000);
         } catch (error) {
             setUploadStatus('error');
@@ -122,6 +154,10 @@ const DocumentUpload = () => {
         setUploadStatus(null);
         setErrorMessage('');
     };
+
+    if (!isAuthenticated) {
+        return null;
+    }
 
     return (
         <div className="w-full max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">

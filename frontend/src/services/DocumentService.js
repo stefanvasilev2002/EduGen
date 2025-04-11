@@ -39,13 +39,17 @@ class DocumentService extends BaseApiService {
      * @param {URLSearchParams} params - Document parameters
      * @returns {Promise} - Promise that resolves with the API response
      */
-    updateDocument(id, params) {
-        return this.withRetry(() => this.request('put', `/${id}`, null, {
-            params,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+    updateDocument(id, updateData) {
+        const data = {};
+        if (updateData instanceof URLSearchParams) {
+            for (const [key, value] of updateData.entries()) {
+                data[key] = value;
             }
-        }));
+        } else {
+            Object.assign(data, updateData);
+        }
+
+        return this.withRetry(() => this.request('put', `/${id}`, data));
     }
 
     /**
