@@ -100,6 +100,12 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20210307</version>
+		</dependency>
+
 		<!-- Apache Tika for MIME type detection -->
 		<dependency>
 			<groupId>org.apache.tika</groupId>
