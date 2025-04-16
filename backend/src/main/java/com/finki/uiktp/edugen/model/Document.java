@@ -1,5 +1,7 @@
 package com.finki.uiktp.edugen.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.finki.uiktp.edugen.model.enums.DocumentFormat;
 import com.finki.uiktp.edugen.model.enums.DocumentType;
 import jakarta.persistence.*;
@@ -11,22 +13,14 @@ import java.util.List;
 
 @Entity
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Document {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    private User user;
-
     @Column(nullable = false)
     private String title;
-
-    @Column(nullable = false)
-    private LocalDateTime uploadedDate;
-
-    @Column(nullable = false)
-    private String language;
 
     @Enumerated(EnumType.STRING)
     private DocumentType type;
@@ -35,24 +29,60 @@ public class Document {
     private DocumentFormat format;
 
     @Column(nullable = false)
+    private String language;
+
+    @Column(name = "uploaded_date", nullable = false)
+    private LocalDateTime uploadedDate;
+
+    @Column(name = "file_path")
     private String filePath;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
+    private User user;
+
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Question> questions = new ArrayList<>();
 
     public Document() {
+        this.uploadedDate = LocalDateTime.now();
+    }
 
+    public Document(String title, DocumentType type, DocumentFormat format, String language, String filePath, String content, User user) {
+        this.title = title;
+        this.type = type;
+        this.format = format;
+        this.language = language;
+        this.filePath = filePath;
+        this.content = content;
+        this.user = user;
+        this.uploadedDate = LocalDateTime.now();
+    }
+
+    public Document(User user, String title, String language, DocumentType type, DocumentFormat format, String filePath, String content) {
+        this.user = user;
+        this.title = title;
+        this.language = language;
+        this.type = type;
+        this.format = format;
+        this.filePath = filePath;
+        this.uploadedDate = LocalDateTime.now();
+        this.content = content;
     }
 
     public Document(User user, String title, String language, DocumentType type, DocumentFormat format, String filePath) {
         this.user = user;
         this.title = title;
-        this.uploadedDate = LocalDateTime.now();
         this.language = language;
         this.type = type;
         this.format = format;
         this.filePath = filePath;
-        this.questions = new ArrayList<>();
-
+        this.uploadedDate = LocalDateTime.now();
     }
 }

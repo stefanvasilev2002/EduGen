@@ -1,15 +1,18 @@
 package com.finki.uiktp.edugen.controller;
 
 import com.finki.uiktp.edugen.model.Question;
+import com.finki.uiktp.edugen.model.dto.QuestionDto;
 import com.finki.uiktp.edugen.model.enums.QuestionType;
 import com.finki.uiktp.edugen.service.QuestionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/questions")
+@RequestMapping("/api/questions")
+@CrossOrigin(origins = "*")
 public class QuestionController {
 
     private final QuestionService questionService;
@@ -19,38 +22,67 @@ public class QuestionController {
     }
 
     @GetMapping
-    public List<Question> findAll() {
-        return this.questionService.listAll();
+    public ResponseEntity<List<QuestionDto>> getAllQuestions() {
+        List<Question> questions = questionService.listAll();
+        List<QuestionDto> questionDtos = questions.stream()
+                .map(QuestionDto::fromQuestion)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(questionDtos);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Question> findById(@PathVariable Long id) {
-        return this.questionService.findById(id)
-                .map(question -> ResponseEntity.ok().body(question))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<QuestionDto> getQuestionById(@PathVariable Long id) {
+        return questionService.findById(id)
+                .map(QuestionDto::fromQuestion)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    public ResponseEntity<Question> create(@RequestParam Long documentId,
-                                           @RequestParam QuestionType type,
-                                           @RequestParam String text) {
-        return ResponseEntity.ok(this.questionService.create(documentId, type, text));
+    public ResponseEntity<QuestionDto> createQuestion(
+            @RequestParam Long documentId,
+            @RequestParam QuestionType type,
+            @RequestParam String text) {
+
+        Question question = questionService.create(documentId, type, text);
+        return ResponseEntity.ok(QuestionDto.fromQuestion(question));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Question> update(@PathVariable Long id,
-                                           @RequestParam QuestionType type,
-                                           @RequestParam String text) {
-        return this.questionService.update(id, type, text)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
-    }
+    public ResponseEntity<QuestionDto> updateQuestion(
+            @PathVariable Long id,
+            @RequestParam QuestionType type,
+            @RequestParam String text) {
 
+        return questionService.update(id, type, text)
+                .map(QuestionDto::fromQuestion)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Question> deleteById(@PathVariable Long id) {
-        this.questionService.delete(id);
-        if (this.questionService.findById(id).isEmpty()) return ResponseEntity.ok().build();
-        return ResponseEntity.badRequest().build();
+    public ResponseEntity<QuestionDto> deleteQuestion(@PathVariable Long id) {
+        Question question = questionService.delete(id);
+        return ResponseEntity.ok(QuestionDto.fromQuestion(question));
     }
+
+    @GetMapping("/document/{documentId}")
+    public ResponseEntity<List<QuestionDto>> getQuestionsByDocumentId(@PathVariable Long documentId) {
+        List<Question> questions = questionService.findByDocumentId(documentId);
+        List<QuestionDto> questionDtos = questions.stream()
+                .map(QuestionDto::fromQuestion)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(questionDtos);
+    }
+
+    @GetMapping("/type/{type}")
+    public ResponseEntity<List<QuestionDto>> getQuestionsByType(@PathVariable QuestionType type) {
+        List<Question> questions = questionService.findByType(type);
+        List<QuestionDto> questionDtos = questions.stream()
+                .map(QuestionDto::fromQuestion)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(questionDtos);
+    }
+
+    // Method for handling answers will be added in a separate controller
 }

@@ -9,11 +9,11 @@ import {
     FiCpu,
     FiLoader
 } from 'react-icons/fi';
-import { DocumentService } from '../../services';
+import { DocumentService, QuestionService } from '../../services';
 import { useAuth } from '../../components/auth/AuthContext';
 
 const GenerateQuestionsPage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
     const [selectedDocument, setSelectedDocument] = useState(null);
@@ -41,6 +41,7 @@ const GenerateQuestionsPage = () => {
             try {
                 setIsLoading(true);
                 setError(null);
+                // If your endpoint expects a user ID, provide it
                 const response = await DocumentService.getAll();
                 setDocuments(response.data || []);
                 setIsLoading(false);
@@ -54,7 +55,7 @@ const GenerateQuestionsPage = () => {
         if (isAuthenticated) {
             fetchDocuments();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, user]);
 
     const handleSelectDocument = (document) => {
         setSelectedDocument(document);
@@ -106,28 +107,36 @@ const GenerateQuestionsPage = () => {
             setError(null);
             setSuccess(null);
 
-            // This is a placeholder - you'll need to implement the actual service method
-            // const response = await DocumentService.generateQuestions(selectedDocument.id, generationSettings);
-
-            // Simulate API call delay and success for now
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // Call our backend API to generate questions
+            const response = await QuestionService.generateQuestions(
+                selectedDocument.id,
+                generationSettings
+            );
 
             setSuccess('Questions generated successfully! You can now view them in the Questions tab.');
             setIsGenerating(false);
 
             // After success, navigate to the questions list page
             setTimeout(() => {
-                navigate('/questions'); // Assuming you'll implement this route
+                navigate('/questions');
             }, 2000);
 
         } catch (err) {
             console.error('Error generating questions:', err);
-            setError('Failed to generate questions. Please try again.');
+            let errorMessage = 'Failed to generate questions. Please try again.';
+
+            // Extract error message from API response if available
+            if (err.response && err.response.data && err.response.data.message) {
+                errorMessage = err.response.data.message;
+            }
+
+            setError(errorMessage);
             setIsGenerating(false);
         }
     };
 
     const getDocumentTypeName = (type) => {
+        if (!type) return 'Unknown';
         return type.charAt(0) + type.slice(1).toLowerCase();
     };
 
@@ -272,10 +281,6 @@ const GenerateQuestionsPage = () => {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
                                 <option value="en">English</option>
-                                <option value="es">Spanish</option>
-                                <option value="fr">French</option>
-                                <option value="de">German</option>
-                                <option value="it">Italian</option>
                                 <option value="mk">Macedonian</option>
                             </select>
                         </div>
@@ -323,34 +328,6 @@ const GenerateQuestionsPage = () => {
                                     />
                                     <label htmlFor="typeFillBlank" className="ml-2 text-sm text-gray-700">
                                         Fill in the Blank
-                                    </label>
-                                </div>
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="typeShortAnswer"
-                                        name="questionTypes"
-                                        value="SHORT_ANSWER"
-                                        checked={generationSettings.questionTypes.includes('SHORT_ANSWER')}
-                                        onChange={handleSettingsChange}
-                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <label htmlFor="typeShortAnswer" className="ml-2 text-sm text-gray-700">
-                                        Short Answer
-                                    </label>
-                                </div>
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="typeMatching"
-                                        name="questionTypes"
-                                        value="MATCHING"
-                                        checked={generationSettings.questionTypes.includes('MATCHING')}
-                                        onChange={handleSettingsChange}
-                                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                    <label htmlFor="typeMatching" className="ml-2 text-sm text-gray-700">
-                                        Matching
                                     </label>
                                 </div>
                             </div>

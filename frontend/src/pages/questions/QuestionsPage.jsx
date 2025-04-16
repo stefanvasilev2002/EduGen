@@ -1,4 +1,3 @@
-// frontend/src/pages/questions/QuestionsPage.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -12,80 +11,14 @@ import {
     FiCheckCircle,
     FiSearch,
     FiEye,
-    FiMoreHorizontal,
     FiChevronDown,
     FiChevronUp
 } from 'react-icons/fi';
 import { useAuth } from '../../components/auth/AuthContext';
-
-// Placeholder for actual service - you'll need to implement this
-const QuestionService = {
-    getAll: () => Promise.resolve({
-        data: [
-            {
-                id: 1,
-                text: "What is the main purpose of a constructor in OOP?",
-                type: "MULTIPLE_CHOICE",
-                documentId: 1,
-                documentTitle: "Object-Oriented Programming Basics",
-                answers: [
-                    { id: 1, text: "To initialize object properties", isCorrect: true },
-                    { id: 2, text: "To destroy objects when they're no longer needed", isCorrect: false },
-                    { id: 3, text: "To overload methods", isCorrect: false },
-                    { id: 4, text: "To implement interfaces", isCorrect: false }
-                ]
-            },
-            {
-                id: 2,
-                text: "A binary search algorithm works on sorted arrays.",
-                type: "TRUE_FALSE",
-                documentId: 2,
-                documentTitle: "Algorithms and Data Structures",
-                answers: [
-                    { id: 5, text: "True", isCorrect: true },
-                    { id: 6, text: "False", isCorrect: false }
-                ]
-            },
-            {
-                id: 3,
-                text: "The complexity of quicksort in the average case is _______.",
-                type: "FILL_IN_THE_BLANK",
-                documentId: 2,
-                documentTitle: "Algorithms and Data Structures",
-                answers: [
-                    { id: 7, text: "O(n log n)", isCorrect: true }
-                ]
-            },
-            {
-                id: 4,
-                text: "Explain the difference between stack and heap memory allocation.",
-                type: "SHORT_ANSWER",
-                documentId: 3,
-                documentTitle: "Memory Management in C++",
-                answers: [
-                    { id: 8, text: "Stack memory is used for static memory allocation while heap memory is used for dynamic memory allocation. Stack is managed automatically by the compiler while heap memory needs to be manually managed by the programmer.", isCorrect: true }
-                ]
-            },
-            {
-                id: 5,
-                text: "Match each data structure with its best use case.",
-                type: "MATCHING",
-                documentId: 2,
-                documentTitle: "Algorithms and Data Structures",
-                answers: [
-                    { id: 9, text: "Array -> Fast lookup with known index", isCorrect: true },
-                    { id: 10, text: "Linked List -> Efficient insertions/deletions", isCorrect: true },
-                    { id: 11, text: "Hash Table -> Fast lookups with string keys", isCorrect: true },
-                    { id: 12, text: "Tree -> Hierarchical data representation", isCorrect: true }
-                ]
-            }
-        ]
-    }),
-    deleteQuestion: (id) => Promise.resolve({ success: true })
-};
+import { QuestionService } from '../../services';
 
 const QuestionsPage = () => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, user } = useAuth();
     const navigate = useNavigate();
 
     const [questions, setQuestions] = useState([]);
@@ -118,6 +51,7 @@ const QuestionsPage = () => {
                 setIsLoading(true);
                 setError(null);
                 const response = await QuestionService.getAll();
+                console.log(response.data)
                 setQuestions(response.data || []);
                 setFilteredQuestions(response.data || []);
                 setIsLoading(false);
@@ -131,7 +65,7 @@ const QuestionsPage = () => {
         if (isAuthenticated) {
             fetchQuestions();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, user]);
 
     useEffect(() => {
         let result = [...questions];
@@ -140,7 +74,7 @@ const QuestionsPage = () => {
         if (searchQuery) {
             result = result.filter(question =>
                 question.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                question.documentTitle.toLowerCase().includes(searchQuery.toLowerCase())
+                question.documentTitle?.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
 
@@ -151,12 +85,18 @@ const QuestionsPage = () => {
 
         // Apply document filter
         if (filters.document) {
-            result = result.filter(question => question.documentTitle.toLowerCase().includes(filters.document.toLowerCase()));
+            result = result.filter(question =>
+                question.documentTitle?.toLowerCase().includes(filters.document.toLowerCase())
+            );
         }
 
         // Apply sorting
         if (sortConfig.key) {
             result.sort((a, b) => {
+                if (!a[sortConfig.key] && !b[sortConfig.key]) return 0;
+                if (!a[sortConfig.key]) return 1;
+                if (!b[sortConfig.key]) return -1;
+
                 if (a[sortConfig.key] < b[sortConfig.key]) {
                     return sortConfig.direction === 'asc' ? -1 : 1;
                 }
@@ -260,8 +200,18 @@ const QuestionsPage = () => {
         }
     };
 
-    const uniqueDocuments = Array.from(new Set(questions.map(q => q.documentTitle)));
-    const uniqueTypes = Array.from(new Set(questions.map(q => q.type)));
+    // Get unique document titles and types for filters
+    const uniqueDocuments = Array.from(new Set(
+        questions
+            .filter(q => q.documentTitle)
+            .map(q => q.documentTitle)
+    ));
+
+    const uniqueTypes = Array.from(new Set(
+        questions
+            .filter(q => q.type)
+            .map(q => q.type)
+    ));
 
     if (!isAuthenticated) {
         return null;
@@ -371,40 +321,40 @@ const QuestionsPage = () => {
                                         onClick={() => handleSort('text')}
                                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                                     >
-                      <span className="flex items-center">
-                        Question
-                          {sortConfig.key === 'text' && (
-                              sortConfig.direction === 'asc'
-                                  ? <FiChevronUp className="ml-1" />
-                                  : <FiChevronDown className="ml-1" />
-                          )}
-                      </span>
+                                        <span className="flex items-center">
+                                            Question
+                                            {sortConfig.key === 'text' && (
+                                                sortConfig.direction === 'asc'
+                                                    ? <FiChevronUp className="ml-1" />
+                                                    : <FiChevronDown className="ml-1" />
+                                            )}
+                                        </span>
                                     </th>
                                     <th
                                         onClick={() => handleSort('type')}
                                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                                     >
-                      <span className="flex items-center">
-                        Type
-                          {sortConfig.key === 'type' && (
-                              sortConfig.direction === 'asc'
-                                  ? <FiChevronUp className="ml-1" />
-                                  : <FiChevronDown className="ml-1" />
-                          )}
-                      </span>
+                                        <span className="flex items-center">
+                                            Type
+                                            {sortConfig.key === 'type' && (
+                                                sortConfig.direction === 'asc'
+                                                    ? <FiChevronUp className="ml-1" />
+                                                    : <FiChevronDown className="ml-1" />
+                                            )}
+                                        </span>
                                     </th>
                                     <th
                                         onClick={() => handleSort('documentTitle')}
                                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                                     >
-                      <span className="flex items-center">
-                        Document
-                          {sortConfig.key === 'documentTitle' && (
-                              sortConfig.direction === 'asc'
-                                  ? <FiChevronUp className="ml-1" />
-                                  : <FiChevronDown className="ml-1" />
-                          )}
-                      </span>
+                                        <span className="flex items-center">
+                                            Document
+                                            {sortConfig.key === 'documentTitle' && (
+                                                sortConfig.direction === 'asc'
+                                                    ? <FiChevronUp className="ml-1" />
+                                                    : <FiChevronDown className="ml-1" />
+                                            )}
+                                        </span>
                                     </th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Actions
@@ -419,9 +369,9 @@ const QuestionsPage = () => {
                                                 <div className="text-sm text-gray-900">{question.text}</div>
                                             </td>
                                             <td className="px-6 py-4">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getQuestionTypeClasses(question.type)}`}>
-                            {getQuestionTypeName(question.type)}
-                          </span>
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getQuestionTypeClasses(question.type)}`}>
+                                                    {getQuestionTypeName(question.type)}
+                                                </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center">
@@ -471,10 +421,10 @@ const QuestionsPage = () => {
                                                     <div className="border-l-4 border-blue-500 pl-4">
                                                         <h4 className="text-lg font-medium text-gray-900 mb-2">Answers:</h4>
                                                         <div className="space-y-2">
-                                                            {question.answers.map((answer) => (
+                                                            {question.answers && question.answers.map((answer) => (
                                                                 <div key={answer.id} className="flex items-start">
-                                                                    <div className={`mt-1 h-4 w-4 rounded-full ${answer.isCorrect ? 'bg-green-500' : 'bg-gray-300'} mr-2`}></div>
-                                                                    <div className={`text-sm ${answer.isCorrect ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                                                                    <div className={`mt-1 h-4 w-4 rounded-full ${answer.correct ? 'bg-green-500' : 'bg-gray-300'} mr-2`}></div>
+                                                                    <div className={`text-sm ${answer.correct ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                                                                         {answer.text}
                                                                     </div>
                                                                 </div>

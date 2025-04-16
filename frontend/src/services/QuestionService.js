@@ -9,6 +9,15 @@ class QuestionService extends BaseApiService {
     }
 
     /**
+     * Get all questions
+     * @param {Object} params - Query parameters (optional)
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    getAll(params = {}) {
+        return super.getAll(params);
+    }
+
+    /**
      * Get all questions for a specific document
      * @param {number} documentId - Document ID
      * @returns {Promise} - Promise that resolves with the API response
@@ -61,10 +70,7 @@ class QuestionService extends BaseApiService {
      * @returns {Promise} - Promise that resolves with the API response
      */
     generateQuestions(documentId, options) {
-        return this.request('post', '/generate', {
-            documentId,
-            ...options
-        });
+        return this.request('post', `/generate?documentId=${documentId}`, options);
     }
 
     /**
