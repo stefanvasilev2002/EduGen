@@ -37,10 +37,6 @@ public class Document {
     @Column(name = "file_path")
     private String filePath;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
-    private String content;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
@@ -54,35 +50,13 @@ public class Document {
         this.uploadedDate = LocalDateTime.now();
     }
 
-    public Document(String title, DocumentType type, DocumentFormat format, String language, String filePath, String content, User user) {
+    public Document(String title, DocumentType type, DocumentFormat format, String language, String filePath, User user) {
         this.title = title;
         this.type = type;
         this.format = format;
         this.language = language;
         this.filePath = filePath;
-        this.content = content;
         this.user = user;
-        this.uploadedDate = LocalDateTime.now();
-    }
-
-    public Document(User user, String title, String language, DocumentType type, DocumentFormat format, String filePath, String content) {
-        this.user = user;
-        this.title = title;
-        this.language = language;
-        this.type = type;
-        this.format = format;
-        this.filePath = filePath;
-        this.uploadedDate = LocalDateTime.now();
-        this.content = content;
-    }
-
-    public Document(User user, String title, String language, DocumentType type, DocumentFormat format, String filePath) {
-        this.user = user;
-        this.title = title;
-        this.language = language;
-        this.type = type;
-        this.format = format;
-        this.filePath = filePath;
         this.uploadedDate = LocalDateTime.now();
     }
 }

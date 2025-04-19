@@ -9,13 +9,19 @@ import com.finki.uiktp.edugen.model.enums.DocumentType;
 import com.finki.uiktp.edugen.repository.DocumentRepository;
 import com.finki.uiktp.edugen.repository.UserRepository;
 import com.finki.uiktp.edugen.service.DocumentService;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import jakarta.annotation.PostConstruct;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -92,7 +98,7 @@ public class DocumentServiceImplementation implements DocumentService {
             throw new IllegalArgumentException("Title cannot be empty");
         }
 
-        Document document = new Document(user, title, language, type, format, filePath);
+        Document document = new Document(title, type, format, language, filePath, user);
         return this.documentRepository.save(document);
     }
 
@@ -121,7 +127,7 @@ public class DocumentServiceImplementation implements DocumentService {
 
         Files.write(filePath, file.getBytes());
 
-        Document document = new Document(user, title, language, type, format, filePath.toString());
+        Document document = new Document(title, type, format, language, filePath.toString(), user);
         return this.documentRepository.save(document);
     }
 
@@ -176,5 +182,29 @@ public class DocumentServiceImplementation implements DocumentService {
         }
 
         return Files.readAllBytes(filePath);
+    }
+
+    @Override
+    public String getDocumentContent(Document document) throws IOException {
+        Path filePath = Paths.get(document.getFilePath());
+        if (!Files.exists(filePath)) {
+            return "";
+        }
+
+        if (document.getFormat() == DocumentFormat.TXT) {
+            return Files.readString(filePath, StandardCharsets.UTF_8);
+        } else if (document.getFormat() == DocumentFormat.PDF) {
+            try (PDDocument pdf = PDDocument.load(filePath.toFile())) {
+                PDFTextStripper stripper = new PDFTextStripper();
+                return stripper.getText(pdf);
+            }
+        } else if (document.getFormat() == DocumentFormat.DOCX) {
+            try (FileInputStream fis = new FileInputStream(filePath.toFile());
+                 XWPFDocument docx = new XWPFDocument(fis)) {
+                XWPFWordExtractor extractor = new XWPFWordExtractor(docx);
+                return extractor.getText();
+            }
+        }
+        return null;
     }
 }

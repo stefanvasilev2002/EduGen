@@ -28,27 +28,10 @@ public class QuestionGenerationController {
 
         List<Question> generatedQuestions = questionGenerationService.generateQuestions(documentId, request);
 
-        // Convert to DTOs for the response
         List<QuestionDto> questionDtos = generatedQuestions.stream()
-                .map(this::convertToDto)
+                .map(QuestionDto::fromQuestion)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(questionDtos);
-    }
-
-    private QuestionDto convertToDto(Question question) {
-        // This method would map the Question entity to a QuestionDto
-        // Implement according to your DTO structure
-        QuestionDto dto = new QuestionDto();
-        dto.setId(question.getId());
-        dto.setText(question.getText());
-        dto.setType(question.getType().toString());
-        dto.setDocumentId(question.getDocument().getId());
-        dto.setDocumentTitle(question.getDocument().getTitle());
-
-        // Map answers
-        // Implement according to your Answer DTO structure
-
-        return dto;
     }
 }
