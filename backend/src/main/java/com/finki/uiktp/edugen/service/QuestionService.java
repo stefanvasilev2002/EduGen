@@ -1,6 +1,5 @@
 package com.finki.uiktp.edugen.service;
 
-import com.finki.uiktp.edugen.model.Answer;
 import com.finki.uiktp.edugen.model.Question;
 import com.finki.uiktp.edugen.model.enums.QuestionType;
 
@@ -12,9 +11,13 @@ public interface QuestionService {
 
     Optional<Question> findById(Long id);
 
-    Question create(Long document, QuestionType type, String text);
+    Question create(Long documentId, QuestionType type, String text);
 
     Optional<Question> update(Long id, QuestionType type, String text);
 
     Question delete(Long id);
+
+    List<Question> findByDocumentId(Long documentId);
+
+    List<Question> findByType(QuestionType type);
 }

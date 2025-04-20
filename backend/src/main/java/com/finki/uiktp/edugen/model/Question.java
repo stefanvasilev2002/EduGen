@@ -1,5 +1,7 @@
 package com.finki.uiktp.edugen.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.finki.uiktp.edugen.model.enums.QuestionType;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -9,6 +11,7 @@ import java.util.List;
 
 @Entity
 @Data
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Question {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,6 +19,7 @@ public class Question {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "document_id", nullable = false)
+    @JsonIgnore
     private Document document;
 
     @Column(nullable = false, length = 1000)
@@ -27,6 +31,9 @@ public class Question {
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Answer> answers = new ArrayList<>();
 
+    @Transient
+    private String documentTitle;
+
     public Question() {
     }
 
@@ -35,5 +42,4 @@ public class Question {
         this.text = text;
         this.type = type;
     }
-
 }

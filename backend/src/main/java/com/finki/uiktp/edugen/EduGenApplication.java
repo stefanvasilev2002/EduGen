@@ -10,7 +10,7 @@ public class EduGenApplication {
 	public static void main(String[] args) {
 		Dotenv dotenv = Dotenv.load();
 		System.setProperty("JWT_SECRET", dotenv.get("JWT_SECRET"));
-		System.setProperty("OPENAI_API_KEY", dotenv.get("OPENAI_API_KEY"));
+		System.setProperty("API_KEY", dotenv.get("API_KEY"));
 		SpringApplication.run(EduGenApplication.class, args);
 	}
 

@@ -1,6 +1,5 @@
 package com.finki.uiktp.edugen.service.Implementation;
 
-import com.finki.uiktp.edugen.model.Answer;
 import com.finki.uiktp.edugen.model.Document;
 import com.finki.uiktp.edugen.model.Exceptions.DocumentNotFoundException;
 import com.finki.uiktp.edugen.model.Exceptions.QuestionNotFoundException;
@@ -41,7 +40,6 @@ public class QuestionServiceImplementation implements QuestionService {
         return this.questionRepository.save(new Question(document, text, type));
     }
 
-
     @Override
     public Optional<Question> update(Long id, QuestionType type, String text) {
         Question question = this.questionRepository.findById(id).orElseThrow(() -> new QuestionNotFoundException(id));
@@ -55,5 +53,17 @@ public class QuestionServiceImplementation implements QuestionService {
         Question question = this.questionRepository.findById(id).orElseThrow(() -> new QuestionNotFoundException(id));
         this.questionRepository.delete(question);
         return question;
+    }
+
+    @Override
+    public List<Question> findByDocumentId(Long documentId) {
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+        return questionRepository.findByDocument(document);
+    }
+
+    @Override
+    public List<Question> findByType(QuestionType type) {
+        return questionRepository.findByType(type);
     }
 }

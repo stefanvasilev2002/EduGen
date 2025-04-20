@@ -1,5 +1,7 @@
 package com.finki.uiktp.edugen.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.finki.uiktp.edugen.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -11,6 +13,7 @@ import java.util.List;
 @Entity
 @Data
 @Table(name = "app_user")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,12 +32,14 @@ public class User {
     private String phoneNumber;
 
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @Enumerated(EnumType.STRING)
     private Role role;
 
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JsonIgnore
     private List<Document> documents = new ArrayList<>();
 
     public User() {

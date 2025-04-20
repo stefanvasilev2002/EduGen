@@ -9,6 +9,8 @@ import PrivateRoute from './components/routing/PrivateRoute';
 import './App.css';
 import DocumentEdit from "./components/document/DocumentEdit";
 import { AuthProvider } from './components/auth/AuthContext';
+import QuestionsPage from "./pages/questions/QuestionsPage";
+import GenerateQuestionsPage from "./pages/questions/GenerateQuestionsPage";
 
 function App() {
     return (
@@ -50,6 +52,22 @@ function App() {
                         <PrivateRoute>
                             <DashboardLayout>
                                 <DocumentEdit />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    <Route path="/questions" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <QuestionsPage />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    <Route path="/questions/generate" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <GenerateQuestionsPage />
                             </DashboardLayout>
                         </PrivateRoute>
                     } />

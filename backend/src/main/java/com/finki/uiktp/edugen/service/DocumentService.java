@@ -30,4 +30,6 @@ public interface DocumentService {
     Document delete(Long id, Long userId);
 
     byte[] getDocumentContent(Long id, Long userId) throws IOException;
+
+    String getDocumentContent(Document document) throws IOException;
 }
