@@ -13,6 +13,9 @@ import com.finki.uiktp.edugen.service.QuestionGenerationService;
 import com.finki.uiktp.edugen.service.QuestionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -21,11 +24,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 public class QuestionGenerationServiceImplementation implements QuestionGenerationService {
+    private static final Logger logger = LoggerFactory.getLogger(QuestionGenerationServiceImplementation.class);
 
     private final DocumentRepository documentRepository;
     private final QuestionService questionService;
@@ -40,10 +45,20 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
     @Value("${ai.generation.api-key:}")
     private String apiKey;
 
+    @Value("${ai.generation.model:gpt-3.5-turbo}")
+    private String model;
+
+    @Value("${ai.generation.temperature:0.7}")
+    private double temperature;
+
+    @Value("${ai.generation.max-tokens:2000}")
+    private int maxTokens;
+
     public QuestionGenerationServiceImplementation(DocumentRepository documentRepository,
                                                    QuestionService questionService,
                                                    AnswerService answerService,
-                                                   RestTemplate restTemplate, DocumentService documentService) {
+                                                   RestTemplate restTemplate,
+                                                   DocumentService documentService) {
         this.documentRepository = documentRepository;
         this.questionService = questionService;
         this.answerService = answerService;
@@ -59,31 +74,52 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
 
         List<GeneratedQuestionDto> generatedQuestions = callAiGenerationApi(document, request);
 
+        if (generatedQuestions.isEmpty()) {
+            logger.warn("No questions were generated for document ID: {}", documentId);
+            return List.of();
+        }
+
+        return saveGeneratedQuestions(documentId, generatedQuestions);
+    }
+
+    private List<Question> saveGeneratedQuestions(Long documentId, List<GeneratedQuestionDto> generatedQuestions) {
         List<Question> savedQuestions = new ArrayList<>();
 
         for (GeneratedQuestionDto generatedQuestion : generatedQuestions) {
-            Question question = questionService.create(
-                    documentId,
-                    convertToQuestionType(generatedQuestion.getType()),
-                    generatedQuestion.getText());
+            try {
+                Question question = questionService.create(
+                        documentId,
+                        convertToQuestionType(generatedQuestion.getType()),
+                        generatedQuestion.getText());
 
-            for (Map<String, Object> answerData : generatedQuestion.getAnswers()) {
-                String answerText = (String) answerData.get("text");
-                Boolean isCorrect = (Boolean) answerData.get("isCorrect");
+                List<Map<String, Object>> answers = generatedQuestion.getAnswers();
+                if (answers != null && !answers.isEmpty()) {
+                    for (Map<String, Object> answerData : answers) {
+                        String answerText = (String) answerData.get("text");
+                        Boolean isCorrect = (Boolean) answerData.getOrDefault("isCorrect", false);
 
-                answerService.create(question.getId(), answerText, isCorrect);
+                        if (answerText != null && !answerText.isBlank()) {
+                            answerService.create(question.getId(), answerText, isCorrect);
+                        }
+                    }
+                } else {
+                    logger.info("Saved question without answers. Question ID: {}, Type: {}",
+                            question.getId(), question.getType());
+                }
+
+                savedQuestions.add(question);
+            } catch (Exception e) {
+                logger.error("Error saving generated question: {}", e.getMessage(), e);
             }
-
-            savedQuestions.add(question);
         }
 
         return savedQuestions;
     }
-
     private QuestionType convertToQuestionType(String type) {
         try {
             return QuestionType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
+            logger.warn("Invalid question type: {}. Defaulting to MULTIPLE_CHOICE", type);
             return QuestionType.MULTIPLE_CHOICE;
         }
     }
@@ -92,12 +128,12 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
         try {
             return callConfiguredAiApi(document, request);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logger.error("Error calling AI API: {}", e.getMessage(), e);
+            return List.of();
         }
-        return List.of();
     }
 
-    private List<GeneratedQuestionDto> callConfiguredAiApi(Document document, GenerateQuestionsRequest request) throws IOException {
+    private List<GeneratedQuestionDto> callConfiguredAiApi(Document document, GenerateQuestionsRequest request) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
@@ -108,57 +144,133 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
         Map<String, Object> requestBody = new HashMap<>();
 
         if (aiApiUrl.contains("openai.com")) {
-            requestBody.put("model", "gpt-3.5-turbo");
+            requestBody.put("model", model);
 
             List<Map<String, String>> messages = new ArrayList<>();
-            messages.add(Map.of("role", "system", "content", "You are a helpful assistant that generates educational questions and answers."));
+            messages.add(Map.of("role", "system", "content", "You are an educational question generator that creates precise, well-formatted JSON output."));
             messages.add(Map.of("role", "user", "content", buildPrompt(document, request)));
             requestBody.put("messages", messages);
 
-            requestBody.put("temperature", 0.7);
-            requestBody.put("max_tokens", 2000);
+            requestBody.put("temperature", temperature);
+            requestBody.put("max_tokens", maxTokens);
         } else {
             requestBody.put("prompt", buildPrompt(document, request));
-            requestBody.put("max_tokens", 2000);
-            requestBody.put("temperature", 0.7);
+            requestBody.put("max_tokens", maxTokens);
+            requestBody.put("temperature", temperature);
         }
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
-        ResponseEntity<Map> response = restTemplate.postForEntity(aiApiUrl, entity, Map.class);
-        String aiResponse = extractContentFromAiResponse(response.getBody());
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(aiApiUrl, entity, Map.class);
 
-        return parseQuestionsFromAiResponse(aiResponse);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                logger.error("AI API returned non-successful status: {}", response.getStatusCode());
+                return List.of();
+            }
+
+            String aiResponse = extractContentFromAiResponse(response.getBody());
+            return parseQuestionsFromAiResponse(aiResponse);
+        } catch (Exception e) {
+            logger.error("Error in AI API communication: {}", e.getMessage(), e);
+            return List.of();
+        }
     }
 
-    private String buildPrompt(Document document, GenerateQuestionsRequest request) throws IOException {
-        StringBuilder promptBuilder = new StringBuilder();
-        promptBuilder.append("Generate ");
-        promptBuilder.append(request.getQuestionCount());
-        promptBuilder.append(" ");
-        promptBuilder.append(request.getDifficultyLevel().toLowerCase());
-        promptBuilder.append(" difficulty ");
+    private String buildPrompt(Document document, GenerateQuestionsRequest request) {
+        String documentContent;
+        try {
+            documentContent = documentService.getDocumentContent(document);
+        } catch (Exception e) {
+            logger.error("Failed to get document content: {}", e.getMessage(), e);
+            documentContent = "Document content unavailable.";
+        }
 
-        promptBuilder.append("questions of the following types: ");
-        promptBuilder.append(String.join(", ", request.getQuestionTypes()));
+        String language = (request.getLanguage() != null && !request.getLanguage().isEmpty())
+                ? request.getLanguage()
+                : "English";
 
-        promptBuilder.append(" based on the following content:\n\n");
-        promptBuilder.append(documentService.getDocumentContent(document));
+        var questionRules = getQuestionRules(request);
 
-        promptBuilder.append("\n\nFormat your response as a JSON array where each question object contains 'text', 'type', and 'answers' fields.");
-        promptBuilder.append(" Each answer should have 'text' and 'isCorrect' fields.");
-        promptBuilder.append(" Ensure the response is valid JSON that can be parsed.");
-        promptBuilder.append(" For each question type: ");
-        promptBuilder.append(" - MULTIPLE_CHOICE should have one correct answer and 2-4 incorrect answers");
-        promptBuilder.append(" - TRUE_FALSE should have exactly one answer marked as correct");
-        promptBuilder.append(" - FILL_IN_THE_BLANK should provide the correct answers to fill in the blank");
-        promptBuilder.append(" The response language should be: ").append(request.getLanguage());
+        boolean includeAnswers = request.getIncludeAnswers() != null ? request.getIncludeAnswers() : true;
 
-        return promptBuilder.toString();
+        String jsonExample;
+        if (includeAnswers) {
+            jsonExample = """
+            [
+              {
+                "text": "The question text",
+                "type": "%s",
+                "answers": [
+                  {"text": "Answer option", "isCorrect": true/false}
+                ]
+              }
+            ]
+            """;
+        } else {
+            jsonExample = """
+            [
+              {
+                "text": "The question text",
+                "type": "%s"
+              }
+            ]
+            """;
+        }
+
+        return String.format("""
+        You are an expert in educational content creation, specializing in generating assessment questions.
+        
+        TASK:
+        Generate %d %s-level questions in %s based on the educational content below.
+        
+        QUESTION TYPES:
+        %s
+        
+        RULES FOR QUESTION TYPES:
+        %s
+        OUTPUT FORMAT:
+        Return ONLY a valid JSON array with this structure:
+        %s
+        
+        %s
+        
+        No explanations or additional text - only the JSON array.
+        
+        EDUCATIONAL CONTENT:
+        %s
+        """,
+                request.getQuestionCount(),
+                request.getDifficultyLevel().toLowerCase(),
+                language,
+                String.join(", ", request.getQuestionTypes()),
+                questionRules,
+                String.format(jsonExample, String.join(" or ", request.getQuestionTypes())),
+                includeAnswers ? "Each question must include answers with correctness indicated." : "Do not include answer options for any questions.",
+                documentContent
+        );
+    }
+
+    private static StringBuilder getQuestionRules(GenerateQuestionsRequest request) {
+        StringBuilder questionRules = new StringBuilder();
+        if (request.getQuestionTypes().contains("MULTIPLE_CHOICE")) {
+            questionRules.append("- MULTIPLE_CHOICE: each question must have 1-3 correct answers and 2-3 incorrect answers\n");
+        }
+        if (request.getQuestionTypes().contains("TRUE_FALSE")) {
+            questionRules.append("- TRUE_FALSE: each question must be a statement that is either true or false, with exactly one answer marked accordingly\n");
+        }
+        if (request.getQuestionTypes().contains("FILL_IN_THE_BLANK")) {
+            questionRules.append("- FILL_IN_THE_BLANK: present a sentence with a blank space, and provide the correct answer(s) to fill in\n");
+        }
+        return questionRules;
     }
 
     private String extractContentFromAiResponse(Map responseBody) {
         try {
+            if (responseBody == null) {
+                return "{}";
+            }
+
             if (responseBody.containsKey("choices")) {
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) responseBody.get("choices");
                 if (!choices.isEmpty()) {
@@ -185,72 +297,114 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
 
             return objectMapper.writeValueAsString(responseBody);
         } catch (Exception e) {
-            throw new RuntimeException("Error extracting content from AI response", e);
+            logger.error("Error extracting content from AI response: {}", e.getMessage(), e);
+            return "{}";
         }
     }
 
     private List<GeneratedQuestionDto> parseQuestionsFromAiResponse(String aiResponse) {
-        List<GeneratedQuestionDto> result = new ArrayList<>();
-
         try {
             String jsonContent = extractJsonFromText(aiResponse);
-            JsonNode jsonArray = objectMapper.readTree(jsonContent);
 
-            if (jsonArray.isArray()) {
-                for (JsonNode questionNode : jsonArray) {
-                    GeneratedQuestionDto questionDto = new GeneratedQuestionDto();
+            JsonNode jsonNode = objectMapper.readTree(jsonContent);
 
-                    if (questionNode.has("text")) {
-                        questionDto.setText(questionNode.get("text").asText());
-                    } else if (questionNode.has("question")) {
-                        questionDto.setText(questionNode.get("question").asText());
-                    } else {
+            JsonNode jsonArray;
+            if (jsonNode.isArray()) {
+                jsonArray = jsonNode;
+            } else if (jsonNode.isObject()) {
+                ArrayNode arrayNode = objectMapper.createArrayNode();
+                arrayNode.add(jsonNode);
+                jsonArray = arrayNode;
+            } else {
+                logger.warn("Unable to parse AI response as JSON: {}", jsonContent);
+                return List.of();
+            }
+
+            List<GeneratedQuestionDto> questions = StreamSupport.stream(jsonArray.spliterator(), false)
+                    .map(this::convertJsonNodeToQuestionDto)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            long questionsWithoutAnswers = questions.stream()
+                    .filter(q -> q.getAnswers() == null || q.getAnswers().isEmpty())
+                    .count();
+
+            if (questionsWithoutAnswers > 0) {
+                logger.info("Generated {} questions without answers", questionsWithoutAnswers);
+            }
+
+            return questions;
+        } catch (Exception e) {
+            logger.error("Error parsing AI response: {}", e.getMessage(), e);
+            return List.of();
+        }
+    }
+    private GeneratedQuestionDto convertJsonNodeToQuestionDto(JsonNode questionNode) {
+        try {
+            GeneratedQuestionDto questionDto = new GeneratedQuestionDto();
+
+            String questionText = null;
+            if (questionNode.has("text")) {
+                questionText = questionNode.get("text").asText();
+            } else if (questionNode.has("question")) {
+                questionText = questionNode.get("question").asText();
+            }
+
+            if (questionText == null || questionText.isBlank()) {
+                return null;
+            }
+
+            questionDto.setText(questionText);
+
+            String type = "MULTIPLE_CHOICE";
+            if (questionNode.has("type")) {
+                type = questionNode.get("type").asText();
+            }
+            questionDto.setType(type);
+
+            List<Map<String, Object>> answers = new ArrayList<>();
+            JsonNode answersNode = questionNode.get("answers");
+            if (answersNode != null && answersNode.isArray()) {
+                for (JsonNode answerNode : answersNode) {
+                    Map<String, Object> answerMap = new HashMap<>();
+
+                    String answerText = null;
+                    if (answerNode.has("text")) {
+                        answerText = answerNode.get("text").asText();
+                    } else if (answerNode.has("answer")) {
+                        answerText = answerNode.get("answer").asText();
+                    }
+
+                    if (answerText == null || answerText.isBlank()) {
                         continue;
                     }
 
-                    if (questionNode.has("type")) {
-                        questionDto.setType(questionNode.get("type").asText());
-                    } else {
-                        questionDto.setType("MULTIPLE_CHOICE"); // Default type
+                    answerMap.put("text", answerText);
+
+                    boolean isCorrect = false;
+                    if (answerNode.has("isCorrect")) {
+                        isCorrect = answerNode.get("isCorrect").asBoolean();
+                    } else if (answerNode.has("correct")) {
+                        isCorrect = answerNode.get("correct").asBoolean();
                     }
 
-                    List<Map<String, Object>> answers = new ArrayList<>();
-                    if (questionNode.has("answers") && questionNode.get("answers").isArray()) {
-                        for (JsonNode answerNode : questionNode.get("answers")) {
-                            Map<String, Object> answerMap = new HashMap<>();
-
-                            if (answerNode.has("text")) {
-                                answerMap.put("text", answerNode.get("text").asText());
-                            } else if (answerNode.has("answer")) {
-                                answerMap.put("text", answerNode.get("answer").asText());
-                            } else {
-                                continue;
-                            }
-
-                            if (answerNode.has("isCorrect")) {
-                                answerMap.put("isCorrect", answerNode.get("isCorrect").asBoolean());
-                            } else if (answerNode.has("correct")) {
-                                answerMap.put("isCorrect", answerNode.get("correct").asBoolean());
-                            } else {
-                                answerMap.put("isCorrect", false);
-                            }
-
-                            answers.add(answerMap);
-                        }
-                    }
-
-                    questionDto.setAnswers(answers);
-                    result.add(questionDto);
+                    answerMap.put("isCorrect", isCorrect);
+                    answers.add(answerMap);
                 }
             }
+
+            questionDto.setAnswers(answers);
+            return questionDto;
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            logger.error("Error converting JSON node to QuestionDto: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+    private String extractJsonFromText(String text) {
+        if (text == null || text.isBlank()) {
+            return "[]";
         }
 
-        return result;
-    }
-
-    private String extractJsonFromText(String text) {
         int startIndex = text.indexOf("[");
         int endIndex = text.lastIndexOf("]");
 
@@ -265,6 +419,27 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
             return text.substring(startIndex, endIndex + 1);
         }
 
+        logger.warn("Could not identify JSON structure in AI response, using fallback parsing");
         return "[" + text + "]";
+    }
+
+    /**
+     * Utility method for handling large documents by breaking them into chunks
+     * Note: This is not used in the current implementation but could be helpful
+     * for processing very large documents
+     */
+    private List<String> chunkDocumentContent(String content, int maxChunkSize) {
+        if (content == null || content.length() <= maxChunkSize) {
+            return Collections.singletonList(content);
+        }
+
+        List<String> chunks = new ArrayList<>();
+        int length = content.length();
+
+        for (int i = 0; i < length; i += maxChunkSize) {
+            chunks.add(content.substring(i, Math.min(length, i + maxChunkSize)));
+        }
+
+        return chunks;
     }
 }

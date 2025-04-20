@@ -43,7 +43,7 @@ public class DocumentController {
 
     private final DocumentService documentService;
     private final UserRepository userRepository;
-    private final String UPLOAD_DIR = "uploads";
+    private final String UPLOAD_DIR = "uploads/";
 
     public DocumentController(DocumentService documentService, UserRepository userRepository) {
         this.documentService = documentService;

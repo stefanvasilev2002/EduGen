@@ -34,10 +34,6 @@ public class Question {
     @Transient
     private String documentTitle;
 
-    public String getDocumentTitle() {
-        return document != null ? document.getTitle() : null;
-    }
-
     public Question() {
     }
 
