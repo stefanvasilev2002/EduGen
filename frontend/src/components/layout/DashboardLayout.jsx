@@ -10,7 +10,8 @@ import {
 } from 'react-icons/fi';
 import { AuthService } from '../../services';
 import {LuFileQuestion} from "react-icons/lu";
-import {FaSchool, FaStickyNote} from "react-icons/fa";
+import {FaStickyNote} from "react-icons/fa";
+import {FaBrain} from "react-icons/fa";
 
 const DashboardLayout = ({ children }) => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -28,6 +29,7 @@ const DashboardLayout = ({ children }) => {
         { name: 'Documents', icon: <FiFileText className="h-5 w-5" />, path: '/documents' },
         { name: 'Generate Questions', icon: <LuFileQuestion className="h-5 w-5" />, path: '/questions/generate' },
         { name: 'View study materials', icon: <FaStickyNote className="h-5 w-5" />, path: '/questions' },
+        { name: 'Take Quiz', icon: <FaBrain className="h-5 w-5" />, path: '/quiz' },
     ];
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);

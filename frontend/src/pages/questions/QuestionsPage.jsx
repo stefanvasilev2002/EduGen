@@ -177,10 +177,6 @@ const QuestionsPage = () => {
             case 'MULTIPLE_CHOICE': return 'Multiple Choice';
             case 'TRUE_FALSE': return 'True/False';
             case 'FILL_IN_THE_BLANK': return 'Fill in the Blank';
-            case 'SHORT_ANSWER': return 'Short Answer';
-            case 'MATCHING': return 'Matching';
-            case 'ORDERING': return 'Ordering';
-            case 'ESSAY': return 'Essay';
             default: return type;
         }
     };
@@ -190,10 +186,6 @@ const QuestionsPage = () => {
             case 'MULTIPLE_CHOICE': return 'bg-blue-100 text-blue-800';
             case 'TRUE_FALSE': return 'bg-green-100 text-green-800';
             case 'FILL_IN_THE_BLANK': return 'bg-yellow-100 text-yellow-800';
-            case 'SHORT_ANSWER': return 'bg-purple-100 text-purple-800';
-            case 'MATCHING': return 'bg-indigo-100 text-indigo-800';
-            case 'ORDERING': return 'bg-pink-100 text-pink-800';
-            case 'ESSAY': return 'bg-gray-100 text-gray-800';
             default: return 'bg-gray-100 text-gray-800';
         }
     };

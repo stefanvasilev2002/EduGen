@@ -12,6 +12,7 @@ import { AuthProvider } from './components/auth/AuthContext';
 import QuestionsPage from "./pages/questions/QuestionsPage";
 import GenerateQuestionsPage from "./pages/questions/GenerateQuestionsPage";
 import QuestionForm from "./components/question/QuestionForm";
+import QuizPage from "./pages/quiz/QuizPage"; // Import the new QuizPage
 
 function App() {
     return (
@@ -85,6 +86,14 @@ function App() {
                         <PrivateRoute>
                             <DashboardLayout>
                                 <GenerateQuestionsPage />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    <Route path="/quiz" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <QuizPage />
                             </DashboardLayout>
                         </PrivateRoute>
                     } />

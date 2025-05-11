@@ -3,6 +3,7 @@ import TestService from './TestService';
 import AuthService from './AuthService';
 import DocumentService from "./DocumentService";
 import QuestionService from "./QuestionService";
+import QuizService from "./QuizService";
 
 export {
     api,
@@ -10,4 +11,5 @@ export {
     AuthService,
     DocumentService,
     QuestionService,
+    QuizService,
 };
