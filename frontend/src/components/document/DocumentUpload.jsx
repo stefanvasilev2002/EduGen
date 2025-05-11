@@ -4,6 +4,7 @@ import { FiUpload, FiFile, FiCheckCircle, FiAlertTriangle, FiTrash } from 'react
 import { DocumentService } from '../../services';
 import { useAuth } from '../auth/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import GoogleDriveIntegration from './GoogleDriveIntegration';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
@@ -29,23 +30,31 @@ const DocumentUpload = ({ onUploadSuccess }) => {
         }
     }, [isAuthenticated, navigate]);
 
-    const onDrop = useCallback(acceptedFiles => {
+    const validateFile = (selectedFile) => {
         setUploadProgress(0);
         setUploadStatus(null);
         setErrorMessage('');
 
-        const selectedFile = acceptedFiles[0];
-
         if (selectedFile.size > MAX_FILE_SIZE) {
             setErrorMessage(`File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
             setUploadStatus('error');
-            return;
+            return false;
         }
 
         const fileExt = selectedFile.name.split('.').pop().toLowerCase();
         if (!['pdf', 'docx', 'txt'].includes(fileExt)) {
             setErrorMessage('Unsupported file format. Please upload PDF, DOCX, or TXT files.');
             setUploadStatus('error');
+            return false;
+        }
+
+        return true;
+    };
+
+    const onDrop = useCallback(acceptedFiles => {
+        const selectedFile = acceptedFiles[0];
+
+        if (!validateFile(selectedFile)) {
             return;
         }
 
@@ -54,7 +63,7 @@ const DocumentUpload = ({ onUploadSuccess }) => {
         setDocumentMetadata({
             ...documentMetadata,
             title: selectedFile.name.split('.')[0],
-            format: fileExt.toUpperCase()
+            format: selectedFile.name.split('.').pop().toUpperCase()
         });
     }, [documentMetadata]);
 
@@ -68,6 +77,18 @@ const DocumentUpload = ({ onUploadSuccess }) => {
         maxSize: MAX_FILE_SIZE,
         multiple: false
     });
+
+    const handleGoogleDriveFileSelect = (selectedFile, metadata) => {
+        if (!validateFile(selectedFile)) {
+            return;
+        }
+
+        setFile(selectedFile);
+        setDocumentMetadata({
+            ...documentMetadata,
+            ...metadata
+        });
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -164,31 +185,51 @@ const DocumentUpload = ({ onUploadSuccess }) => {
             <h2 className="text-2xl font-semibold mb-6 text-gray-800">Upload Document</h2>
 
             {!file ? (
-                <div className="mb-6">
-                    <div
-                        {...getRootProps()}
-                        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-                            isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
-                        }`}
-                    >
-                        <input {...getInputProps()} />
-                        <div className="flex flex-col items-center justify-center">
-                            <FiUpload className="text-4xl text-gray-400 mb-3" />
-                            <p className="text-gray-600 mb-2">
-                                {isDragActive
-                                    ? 'Drop the file here'
-                                    : 'Drag & drop your document here'}
-                            </p>
-                            <p className="text-gray-500 text-sm mb-4">Supported formats: PDF, DOCX, TXT (Max 5MB)</p>
-                            <button
-                                type="button"
-                                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded transition-colors"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                Browse files
-                            </button>
+                <div>
+                    {/* Local File Upload */}
+                    <div className="mb-6">
+                        <div
+                            {...getRootProps()}
+                            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+                                isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+                            }`}
+                        >
+                            <input {...getInputProps()} />
+                            <div className="flex flex-col items-center justify-center">
+                                <FiUpload className="text-4xl text-gray-400 mb-3" />
+                                <p className="text-gray-600 mb-2">
+                                    {isDragActive
+                                        ? 'Drop the file here'
+                                        : 'Drag & drop your document here'}
+                                </p>
+                                <p className="text-gray-500 text-sm mb-4">Supported formats: PDF, DOCX, TXT (Max 5MB)</p>
+                                <button
+                                    type="button"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    Browse files
+                                </button>
+                            </div>
                         </div>
                     </div>
+
+                    {/* Divider */}
+                    <div className="relative mb-6">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-white text-gray-500">OR</span>
+                        </div>
+                    </div>
+
+                    {/* Google Drive Integration */}
+                    <GoogleDriveIntegration
+                        onFileSelect={handleGoogleDriveFileSelect}
+                        setFile={setFile}
+                        setDocumentMetadata={setDocumentMetadata}
+                    />
                 </div>
             ) : (
                 <div className="mb-6">
