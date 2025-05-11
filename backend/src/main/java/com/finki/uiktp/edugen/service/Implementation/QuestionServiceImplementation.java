@@ -9,6 +9,7 @@ import com.finki.uiktp.edugen.repository.DocumentRepository;
 import com.finki.uiktp.edugen.repository.QuestionRepository;
 import com.finki.uiktp.edugen.service.QuestionService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -36,21 +37,31 @@ public class QuestionServiceImplementation implements QuestionService {
 
     @Override
     public Question create(Long documentId, QuestionType type, String text) {
-        Document document = documentRepository.findById(documentId).orElseThrow(() -> new DocumentNotFoundException(documentId));
+        Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new DocumentNotFoundException(documentId));
         return this.questionRepository.save(new Question(document, text, type));
     }
 
     @Override
     public Optional<Question> update(Long id, QuestionType type, String text) {
-        Question question = this.questionRepository.findById(id).orElseThrow(() -> new QuestionNotFoundException(id));
+        Question question = this.questionRepository.findById(id)
+                .orElseThrow(() -> new QuestionNotFoundException(id));
         question.setType(type);
         question.setText(text);
         return Optional.of(this.questionRepository.save(question));
     }
 
     @Override
+    @Transactional
+    public Question updateQuestion(Long id, Question question) {
+        question.setId(id);
+        return this.questionRepository.save(question);
+    }
+
+    @Override
     public Question delete(Long id) {
-        Question question = this.questionRepository.findById(id).orElseThrow(() -> new QuestionNotFoundException(id));
+        Question question = this.questionRepository.findById(id)
+                .orElseThrow(() -> new QuestionNotFoundException(id));
         this.questionRepository.delete(question);
         return question;
     }

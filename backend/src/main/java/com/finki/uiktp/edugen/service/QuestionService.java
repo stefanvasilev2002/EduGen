@@ -20,4 +20,6 @@ public interface QuestionService {
     List<Question> findByDocumentId(Long documentId);
 
     List<Question> findByType(QuestionType type);
+    Question updateQuestion(Long id, Question question);
+
 }

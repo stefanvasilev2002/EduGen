@@ -12,10 +12,12 @@ import {
     FiSearch,
     FiEye,
     FiChevronDown,
-    FiChevronUp
+    FiChevronUp,
+    FiEdit3,
 } from 'react-icons/fi';
 import { useAuth } from '../../components/auth/AuthContext';
 import { QuestionService } from '../../services';
+import {FaBrain} from "react-icons/fa";
 
 const QuestionsPage = () => {
     const { isAuthenticated, user } = useAuth();
@@ -51,7 +53,7 @@ const QuestionsPage = () => {
                 setIsLoading(true);
                 setError(null);
                 const response = await QuestionService.getAll();
-                console.log(response.data)
+                console.log('Questions response:', response.data);
                 setQuestions(response.data || []);
                 setFilteredQuestions(response.data || []);
                 setIsLoading(false);
@@ -70,7 +72,6 @@ const QuestionsPage = () => {
     useEffect(() => {
         let result = [...questions];
 
-        // Apply search filter
         if (searchQuery) {
             result = result.filter(question =>
                 question.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -78,19 +79,16 @@ const QuestionsPage = () => {
             );
         }
 
-        // Apply type filter
         if (filters.type) {
             result = result.filter(question => question.type === filters.type);
         }
 
-        // Apply document filter
         if (filters.document) {
             result = result.filter(question =>
                 question.documentTitle?.toLowerCase().includes(filters.document.toLowerCase())
             );
         }
 
-        // Apply sorting
         if (sortConfig.key) {
             result.sort((a, b) => {
                 if (!a[sortConfig.key] && !b[sortConfig.key]) return 0;
@@ -200,7 +198,6 @@ const QuestionsPage = () => {
         }
     };
 
-    // Get unique document titles and types for filters
     const uniqueDocuments = Array.from(new Set(
         questions
             .filter(q => q.documentTitle)
@@ -221,13 +218,22 @@ const QuestionsPage = () => {
         <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800">Questions</h2>
-                <Link
-                    to="/questions/generate"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
-                >
-                    <FiPlus className="mr-2" />
-                    Generate Questions
-                </Link>
+                <div className="flex space-x-3">
+                    <Link
+                        to="/questions/create"
+                        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
+                    >
+                        <FiEdit3 className="mr-2" />
+                        Create Question
+                    </Link>
+                    <Link
+                        to="/questions/generate"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+                    >
+                        <FaBrain className="mr-2" />
+                        Generate Questions
+                    </Link>
+                </div>
             </div>
 
             {/* Error message */}
@@ -394,8 +400,7 @@ const QuestionsPage = () => {
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            // Redirect to edit question page
-                                                            // navigate(`/questions/edit/${question.id}`);
+                                                            navigate(`/questions/edit/${question.id}`);
                                                         }}
                                                         className="text-indigo-600 hover:text-indigo-900"
                                                         title="Edit Question"
@@ -423,8 +428,8 @@ const QuestionsPage = () => {
                                                         <div className="space-y-2">
                                                             {question.answers && question.answers.map((answer) => (
                                                                 <div key={answer.id} className="flex items-start">
-                                                                    <div className={`mt-1 h-4 w-4 rounded-full ${answer.correct ? 'bg-green-500' : 'bg-gray-300'} mr-2`}></div>
-                                                                    <div className={`text-sm ${answer.correct ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
+                                                                    <div className={`mt-1 h-4 w-4 rounded-full ${answer.isCorrect ? 'bg-green-500' : 'bg-gray-300'} mr-2`}></div>
+                                                                    <div className={`text-sm ${answer.isCorrect ? 'font-medium text-gray-900' : 'text-gray-700'}`}>
                                                                         {answer.text}
                                                                     </div>
                                                                 </div>
@@ -445,16 +450,25 @@ const QuestionsPage = () => {
                             <h3 className="text-lg font-medium text-gray-900 mb-1">No questions found</h3>
                             <p className="text-gray-500 mb-4">
                                 {searchQuery || filters.type || filters.document
-                                    ? 'Try clearing your filters or generate new questions'
-                                    : 'Get started by generating your first questions'}
+                                    ? 'Try clearing your filters or create new questions'
+                                    : 'Get started by creating your first questions'}
                             </p>
-                            <Link
-                                to="/questions/generate"
-                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
-                            >
-                                <FiPlus className="mr-2 -ml-1 h-4 w-4" />
-                                Generate Questions
-                            </Link>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                <Link
+                                    to="/questions/create"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700"
+                                >
+                                    <FiEdit3 className="mr-2 -ml-1 h-4 w-4" />
+                                    Create Question
+                                </Link>
+                                <Link
+                                    to="/questions/generate"
+                                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                                >
+                                    <FaBrain className="mr-2 -ml-1 h-4 w-4" />
+                                    Generate Questions
+                                </Link>
+                            </div>
                         </div>
                     )}
                 </>

@@ -28,7 +28,7 @@ public class Question {
     @Enumerated(EnumType.STRING)
     private QuestionType type;
 
-    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Answer> answers = new ArrayList<>();
 
     @Transient
@@ -41,5 +41,15 @@ public class Question {
         this.document = document;
         this.text = text;
         this.type = type;
+    }
+
+    public void addAnswer(Answer answer) {
+        answers.add(answer);
+        answer.setQuestion(this);
+    }
+
+    public void removeAnswer(Answer answer) {
+        answers.remove(answer);
+        answer.setQuestion(null);
     }
 }

@@ -11,6 +11,7 @@ import DocumentEdit from "./components/document/DocumentEdit";
 import { AuthProvider } from './components/auth/AuthContext';
 import QuestionsPage from "./pages/questions/QuestionsPage";
 import GenerateQuestionsPage from "./pages/questions/GenerateQuestionsPage";
+import QuestionForm from "./components/question/QuestionForm";
 
 function App() {
     return (
@@ -60,6 +61,22 @@ function App() {
                         <PrivateRoute>
                             <DashboardLayout>
                                 <QuestionsPage />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    <Route path="/questions/create" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <QuestionForm />
+                            </DashboardLayout>
+                        </PrivateRoute>
+                    } />
+
+                    <Route path="/questions/edit/:id" element={
+                        <PrivateRoute>
+                            <DashboardLayout>
+                                <QuestionForm />
                             </DashboardLayout>
                         </PrivateRoute>
                     } />

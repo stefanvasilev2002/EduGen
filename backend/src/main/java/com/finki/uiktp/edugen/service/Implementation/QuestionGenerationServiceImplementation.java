@@ -222,7 +222,7 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
         You are an expert in educational content creation, specializing in generating assessment questions.
         
         TASK:
-        Generate %d %s-level questions in %s based on the educational content below.
+        Generate %d %s-level questions in %s language based on the educational content below.
         
         QUESTION TYPES:
         %s

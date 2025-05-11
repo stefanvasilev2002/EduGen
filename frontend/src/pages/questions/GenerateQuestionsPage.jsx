@@ -41,7 +41,6 @@ const GenerateQuestionsPage = () => {
             try {
                 setIsLoading(true);
                 setError(null);
-                // If your endpoint expects a user ID, provide it
                 const response = await DocumentService.getAll();
                 setDocuments(response.data || []);
                 setIsLoading(false);
@@ -65,7 +64,6 @@ const GenerateQuestionsPage = () => {
         const { name, value, type, checked } = e.target;
 
         if (name === 'questionTypes') {
-            // Handle multi-select checkboxes
             const updatedTypes = [...generationSettings.questionTypes];
             if (checked) {
                 if (!updatedTypes.includes(value)) {
@@ -83,7 +81,6 @@ const GenerateQuestionsPage = () => {
                 questionTypes: updatedTypes
             });
         } else {
-            // Handle regular inputs
             setGenerationSettings({
                 ...generationSettings,
                 [name]: type === 'checkbox' ? checked : value
@@ -107,7 +104,6 @@ const GenerateQuestionsPage = () => {
             setError(null);
             setSuccess(null);
 
-            // Call our backend API to generate questions
             const response = await QuestionService.generateQuestions(
                 selectedDocument.id,
                 generationSettings
@@ -116,7 +112,6 @@ const GenerateQuestionsPage = () => {
             setSuccess('Questions generated successfully! You can now view them in the Questions tab.');
             setIsGenerating(false);
 
-            // After success, navigate to the questions list page
             setTimeout(() => {
                 navigate('/questions');
             }, 2000);
@@ -125,7 +120,6 @@ const GenerateQuestionsPage = () => {
             console.error('Error generating questions:', err);
             let errorMessage = 'Failed to generate questions. Please try again.';
 
-            // Extract error message from API response if available
             if (err.response && err.response.data && err.response.data.message) {
                 errorMessage = err.response.data.message;
             }
@@ -280,8 +274,8 @@ const GenerateQuestionsPage = () => {
                                 onChange={handleSettingsChange}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                <option value="en">English</option>
-                                <option value="mk">Macedonian</option>
+                                <option value="English">English</option>
+                                <option value="Macedonian">Macedonian</option>
                             </select>
                         </div>
 

@@ -43,7 +43,6 @@ const AuthService = {
                 const decodedToken = jwtDecode(token);
                 const currentTime = Date.now() / 1000;
 
-                // If token is expired
                 if (decodedToken.exp < currentTime) {
                     console.log('Token expired, logging out...');
                     AuthService.logout();

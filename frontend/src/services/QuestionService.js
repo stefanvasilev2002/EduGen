@@ -18,6 +18,15 @@ class QuestionService extends BaseApiService {
     }
 
     /**
+     * Get a single question by ID
+     * @param {number} id - Question ID
+     * @returns {Promise} - Promise that resolves with the API response
+     */
+    getById(id) {
+        return super.getById(id);
+    }
+
+    /**
      * Get all questions for a specific document
      * @param {number} documentId - Document ID
      * @returns {Promise} - Promise that resolves with the API response
@@ -37,21 +46,66 @@ class QuestionService extends BaseApiService {
 
     /**
      * Create a new question
-     * @param {Object} questionData - Question data
+     * @param {URLSearchParams|Object|FormData} questionData - Question data
      * @returns {Promise} - Promise that resolves with the API response
      */
     createQuestion(questionData) {
-        return this.create(questionData);
+        let formData;
+
+        if (questionData instanceof URLSearchParams) {
+            formData = questionData;
+        } else if (questionData instanceof FormData) {
+            formData = questionData;
+        } else {
+            formData = new URLSearchParams();
+            Object.keys(questionData).forEach(key => {
+                formData.append(key, questionData[key]);
+            });
+        }
+
+        console.log('Creating question with data:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+
+        return this.request('post', '', formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
     }
 
     /**
      * Update a question
      * @param {number} id - Question ID
-     * @param {Object} questionData - Updated question data
+     * @param {URLSearchParams|Object|FormData} questionData - Updated question data
      * @returns {Promise} - Promise that resolves with the API response
      */
     updateQuestion(id, questionData) {
-        return this.update(id, questionData);
+        let formData;
+
+        if (questionData instanceof URLSearchParams) {
+            formData = questionData;
+        } else if (questionData instanceof FormData) {
+            formData = questionData;
+        } else {
+            formData = new URLSearchParams();
+            Object.keys(questionData).forEach(key => {
+                formData.append(key, questionData[key]);
+            });
+        }
+
+        console.log('Updating question with ID:', id);
+        console.log('Update data:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}: ${value}`);
+        }
+
+        return this.request('put', `/${id}`, formData, {
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
     }
 
     /**
@@ -71,46 +125,6 @@ class QuestionService extends BaseApiService {
      */
     generateQuestions(documentId, options) {
         return this.request('post', `/generate?documentId=${documentId}`, options);
-    }
-
-    /**
-     * Get answers for a question
-     * @param {number} questionId - Question ID
-     * @returns {Promise} - Promise that resolves with the API response
-     */
-    getAnswers(questionId) {
-        return this.request('get', `/${questionId}/answers`);
-    }
-
-    /**
-     * Add answer to a question
-     * @param {number} questionId - Question ID
-     * @param {Object} answerData - Answer data
-     * @returns {Promise} - Promise that resolves with the API response
-     */
-    addAnswer(questionId, answerData) {
-        return this.request('post', `/${questionId}/answers`, answerData);
-    }
-
-    /**
-     * Update an answer
-     * @param {number} questionId - Question ID
-     * @param {number} answerId - Answer ID
-     * @param {Object} answerData - Updated answer data
-     * @returns {Promise} - Promise that resolves with the API response
-     */
-    updateAnswer(questionId, answerId, answerData) {
-        return this.request('put', `/${questionId}/answers/${answerId}`, answerData);
-    }
-
-    /**
-     * Delete an answer
-     * @param {number} questionId - Question ID
-     * @param {number} answerId - Answer ID
-     * @returns {Promise} - Promise that resolves with the API response
-     */
-    deleteAnswer(questionId, answerId) {
-        return this.request('delete', `/${questionId}/answers/${answerId}`);
     }
 
     /**

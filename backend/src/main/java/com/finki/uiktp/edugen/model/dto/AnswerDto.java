@@ -16,4 +16,12 @@ public class AnswerDto {
         dto.setCorrect(answer.isCorrect());
         return dto;
     }
+
+    public Answer toAnswer() {
+        Answer answer = new Answer();
+        answer.setId(this.id);
+        answer.setText(this.text);
+        answer.setCorrect(this.isCorrect);
+        return answer;
+    }
 }
