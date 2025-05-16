@@ -12,7 +12,8 @@ import { AuthProvider } from './components/auth/AuthContext';
 import QuestionsPage from "./pages/questions/QuestionsPage";
 import GenerateQuestionsPage from "./pages/questions/GenerateQuestionsPage";
 import QuestionForm from "./components/question/QuestionForm";
-import QuizPage from "./pages/quiz/QuizPage"; // Import the new QuizPage
+import QuizPage from "./pages/quiz/QuizPage";
+import PrivacyPolicy from "./pages/Policy"; // Import the new QuizPage
 
 function App() {
     return (
@@ -97,7 +98,7 @@ function App() {
                             </DashboardLayout>
                         </PrivateRoute>
                     } />
-
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
                     {/* Fallback for unknown routes */}
                     <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
