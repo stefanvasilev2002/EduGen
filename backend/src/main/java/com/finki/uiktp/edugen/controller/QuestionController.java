@@ -4,10 +4,13 @@ import com.finki.uiktp.edugen.model.Answer;
 import com.finki.uiktp.edugen.model.Question;
 import com.finki.uiktp.edugen.model.dto.QuestionDto;
 import com.finki.uiktp.edugen.model.enums.QuestionType;
+import com.finki.uiktp.edugen.service.Implementation.PdfExportService;
 import com.finki.uiktp.edugen.service.QuestionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +26,11 @@ public class QuestionController {
 
     private final QuestionService questionService;
     private final ObjectMapper objectMapper;
-
-    public QuestionController(QuestionService questionService, ObjectMapper objectMapper) {
+    private final PdfExportService pdfExportService;
+    public QuestionController(QuestionService questionService, ObjectMapper objectMapper, PdfExportService pdfExportService) {
         this.questionService = questionService;
         this.objectMapper = objectMapper;
+        this.pdfExportService = pdfExportService;
     }
 
     @GetMapping
@@ -188,5 +192,27 @@ public class QuestionController {
                 .map(QuestionDto::fromQuestion)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(questionDtos);
+    }
+    @PostMapping("/export/pdf")
+    public ResponseEntity<byte[]> exportQuestionsToPdf(@RequestBody Map<String, List<Long>> request) {
+        try {
+            List<Long> questionIds = request.get("questionIds");
+            if (questionIds == null || questionIds.isEmpty()) {
+                return ResponseEntity.badRequest().build();
+            }
+
+            byte[] pdfContent = pdfExportService.exportQuestionsToPdf(questionIds);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "questions_export_" + System.currentTimeMillis() + ".pdf");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return new ResponseEntity<>(pdfContent, headers, HttpStatus.OK);
+        } catch (Exception e) {
+            System.err.println("Error exporting questions to PDF: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }
