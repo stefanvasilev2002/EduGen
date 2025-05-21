@@ -14,6 +14,9 @@ import {
     FiChevronDown,
     FiChevronUp,
     FiEdit3,
+    FiDownload,
+    FiSquare,
+    FiCheckSquare,
 } from 'react-icons/fi';
 import { useAuth } from '../../components/auth/AuthContext';
 import { QuestionService } from '../../services';
@@ -40,6 +43,8 @@ const QuestionsPage = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [questionToDelete, setQuestionToDelete] = useState(null);
     const [expandedQuestion, setExpandedQuestion] = useState(null);
+    const [selectedQuestions, setSelectedQuestions] = useState([]);
+    const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
         if (!isAuthenticated) {
@@ -172,6 +177,56 @@ const QuestionsPage = () => {
         }
     };
 
+    const handleSelectQuestion = (questionId) => {
+        if (selectedQuestions.includes(questionId)) {
+            setSelectedQuestions(selectedQuestions.filter(id => id !== questionId));
+        } else {
+            setSelectedQuestions([...selectedQuestions, questionId]);
+        }
+    };
+
+    const handleSelectAll = () => {
+        if (selectedQuestions.length === filteredQuestions.length) {
+            setSelectedQuestions([]);
+        } else {
+            setSelectedQuestions(filteredQuestions.map(q => q.id));
+        }
+    };
+
+    const handleExportPdf = async () => {
+        if (selectedQuestions.length === 0) {
+            setError('Please select at least one question to export');
+            return;
+        }
+
+        setIsExporting(true);
+        try {
+            const response = await QuestionService.exportToPdf(selectedQuestions);
+
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `questions_export_${new Date().getTime()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            setSuccess(`Successfully exported ${selectedQuestions.length} questions to PDF`);
+            setSelectedQuestions([]);
+
+            setTimeout(() => {
+                setSuccess(null);
+            }, 3000);
+        } catch (err) {
+            console.error('Error exporting questions:', err);
+            setError('Failed to export questions. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const getQuestionTypeName = (type) => {
         switch (type) {
             case 'MULTIPLE_CHOICE': return 'Multiple Choice';
@@ -211,6 +266,16 @@ const QuestionsPage = () => {
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-gray-800">Questions</h2>
                 <div className="flex space-x-3">
+                    {selectedQuestions.length > 0 && (
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={isExporting}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors flex items-center disabled:opacity-50"
+                        >
+                            <FiDownload className="mr-2" />
+                            {isExporting ? 'Exporting...' : `Export ${selectedQuestions.length} to PDF`}
+                        </button>
+                    )}
                     <Link
                         to="/questions/create"
                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center"
@@ -315,6 +380,16 @@ const QuestionsPage = () => {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                 <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <button
+                                            onClick={handleSelectAll}
+                                            className="flex items-center hover:text-gray-700"
+                                        >
+                                            {selectedQuestions.length === filteredQuestions.length && filteredQuestions.length > 0
+                                                ? <FiCheckSquare className="h-4 w-4" />
+                                                : <FiSquare className="h-4 w-4" />}
+                                        </button>
+                                    </th>
                                     <th
                                         onClick={() => handleSort('text')}
                                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -363,6 +438,16 @@ const QuestionsPage = () => {
                                 {filteredQuestions.map((question) => (
                                     <React.Fragment key={question.id}>
                                         <tr className="hover:bg-gray-50 cursor-pointer" onClick={() => toggleQuestionExpand(question.id)}>
+                                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => handleSelectQuestion(question.id)}
+                                                    className="flex items-center hover:text-gray-700"
+                                                >
+                                                    {selectedQuestions.includes(question.id)
+                                                        ? <FiCheckSquare className="h-4 w-4" />
+                                                        : <FiSquare className="h-4 w-4" />}
+                                                </button>
+                                            </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-sm text-gray-900">{question.text}</div>
                                             </td>
@@ -414,7 +499,7 @@ const QuestionsPage = () => {
                                         </tr>
                                         {expandedQuestion === question.id && (
                                             <tr className="bg-gray-50">
-                                                <td colSpan="4" className="px-6 py-4">
+                                                <td colSpan="5" className="px-6 py-4">
                                                     <div className="border-l-4 border-blue-500 pl-4">
                                                         <h4 className="text-lg font-medium text-gray-900 mb-2">Answers:</h4>
                                                         <div className="space-y-2">
