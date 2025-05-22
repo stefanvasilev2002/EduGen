@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -39,13 +40,16 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
     private final ObjectMapper objectMapper;
     private final DocumentService documentService;
 
+    // Add a request tracking mechanism to prevent infinite loops
+    private static final Set<String> activeRequests = ConcurrentHashMap.newKeySet();
+
     @Value("${ai.generation.api-url:https://api.openai.com/v1/chat/completions}")
     private String aiApiUrl;
 
     @Value("${ai.generation.api-key:}")
     private String apiKey;
 
-    @Value("${ai.generation.model:gpt-3.5-turbo}")
+    @Value("${ai.generation.model:o1-mini}")
     private String model;
 
     @Value("${ai.generation.temperature:0.7}")
@@ -69,37 +73,79 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
 
     @Override
     public List<Question> generateQuestions(Long documentId, GenerateQuestionsRequest request) {
-        Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new DocumentNotFoundException(documentId));
+        // Create a unique request identifier to prevent duplicate processing
+        String requestId = documentId + "_" + System.currentTimeMillis() + "_" +
+                request.getQuestionCount() + "_" + String.join(",", request.getQuestionTypes());
 
-        List<GeneratedQuestionDto> generatedQuestions = callAiGenerationApi(document, request);
-
-        if (generatedQuestions.isEmpty()) {
-            logger.warn("No questions were generated for document ID: {}", documentId);
+        // Check if this request is already being processed
+        if (activeRequests.contains(requestId)) {
+            logger.warn("Duplicate request detected for document ID: {}. Skipping to prevent infinite loop.", documentId);
             return List.of();
         }
 
-        return saveGeneratedQuestions(documentId, generatedQuestions);
+        // Add to active requests
+        activeRequests.add(requestId);
+
+        try {
+            logger.info("Starting question generation for document ID: {}, Questions: {}, Types: {}",
+                    documentId, request.getQuestionCount(), request.getQuestionTypes());
+
+            Document document = documentRepository.findById(documentId)
+                    .orElseThrow(() -> new DocumentNotFoundException(documentId));
+
+            List<GeneratedQuestionDto> generatedQuestions = callAiGenerationApi(document, request);
+
+            if (generatedQuestions.isEmpty()) {
+                logger.warn("No questions were generated for document ID: {}", documentId);
+                return List.of();
+            }
+
+            logger.info("Generated {} questions from AI for document ID: {}", generatedQuestions.size(), documentId);
+
+            List<Question> savedQuestions = saveGeneratedQuestions(documentId, generatedQuestions);
+
+            logger.info("Successfully saved {} questions for document ID: {}", savedQuestions.size(), documentId);
+
+            return savedQuestions;
+
+        } catch (Exception e) {
+            logger.error("Error in generateQuestions for document ID: {}: {}", documentId, e.getMessage(), e);
+            return List.of();
+        } finally {
+            // Always remove from active requests when done
+            activeRequests.remove(requestId);
+        }
     }
 
     private List<Question> saveGeneratedQuestions(Long documentId, List<GeneratedQuestionDto> generatedQuestions) {
         List<Question> savedQuestions = new ArrayList<>();
 
-        for (GeneratedQuestionDto generatedQuestion : generatedQuestions) {
+        logger.info("Saving {} generated questions for document ID: {}", generatedQuestions.size(), documentId);
+
+        for (int i = 0; i < generatedQuestions.size(); i++) {
+            GeneratedQuestionDto generatedQuestion = generatedQuestions.get(i);
             try {
+                logger.debug("Saving question {}/{} for document ID: {}", i + 1, generatedQuestions.size(), documentId);
+
                 Question question = questionService.create(
                         documentId,
                         convertToQuestionType(generatedQuestion.getType()),
                         generatedQuestion.getText());
 
+                logger.debug("Created question with ID: {} for document ID: {}", question.getId(), documentId);
+
                 List<Map<String, Object>> answers = generatedQuestion.getAnswers();
                 if (answers != null && !answers.isEmpty()) {
-                    for (Map<String, Object> answerData : answers) {
+                    logger.debug("Saving {} answers for question ID: {}", answers.size(), question.getId());
+
+                    for (int j = 0; j < answers.size(); j++) {
+                        Map<String, Object> answerData = answers.get(j);
                         String answerText = (String) answerData.get("text");
                         Boolean isCorrect = (Boolean) answerData.getOrDefault("isCorrect", false);
 
                         if (answerText != null && !answerText.isBlank()) {
                             answerService.create(question.getId(), answerText, isCorrect);
+                            logger.debug("Saved answer {}/{} for question ID: {}", j + 1, answers.size(), question.getId());
                         }
                     }
                 } else {
@@ -108,13 +154,20 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
                 }
 
                 savedQuestions.add(question);
+
             } catch (Exception e) {
-                logger.error("Error saving generated question: {}", e.getMessage(), e);
+                logger.error("Error saving generated question {}/{} for document ID: {}: {}",
+                        i + 1, generatedQuestions.size(), documentId, e.getMessage(), e);
+                // Continue processing other questions instead of stopping
             }
         }
 
+        logger.info("Successfully saved {}/{} questions for document ID: {}",
+                savedQuestions.size(), generatedQuestions.size(), documentId);
+
         return savedQuestions;
     }
+
     private QuestionType convertToQuestionType(String type) {
         try {
             return QuestionType.valueOf(type.toUpperCase());
@@ -126,13 +179,18 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
 
     private List<GeneratedQuestionDto> callAiGenerationApi(Document document, GenerateQuestionsRequest request) {
         try {
-            return callConfiguredAiApi(document, request);
+            logger.info("Calling AI API for document ID: {}", document.getId());
+            List<GeneratedQuestionDto> result = callConfiguredAiApi(document, request);
+            logger.info("AI API returned {} questions for document ID: {}", result.size(), document.getId());
+            return result;
         } catch (Exception e) {
-            logger.error("Error calling AI API: {}", e.getMessage(), e);
+            logger.error("Error calling AI API for document ID: {}: {}", document.getId(), e.getMessage(), e);
             return List.of();
         }
     }
-
+    private boolean isO1Model() {
+        return model != null && (model.startsWith("o1") || model.startsWith("o4"));
+    }
     private List<GeneratedQuestionDto> callConfiguredAiApi(Document document, GenerateQuestionsRequest request) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -142,27 +200,38 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
         }
 
         Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", model);
 
-        if (aiApiUrl.contains("openai.com")) {
-            requestBody.put("model", model);
-
+        if (isO1Model()) {
             List<Map<String, String>> messages = new ArrayList<>();
-            messages.add(Map.of("role", "system", "content", "You are an educational question generator that creates precise, well-formatted JSON output."));
-            messages.add(Map.of("role", "user", "content", buildPrompt(document, request)));
+            messages.add(Map.of("role", "user", "content", buildO1Prompt(document, request)));
             requestBody.put("messages", messages);
 
-            requestBody.put("temperature", temperature);
-            requestBody.put("max_tokens", maxTokens);
         } else {
-            requestBody.put("prompt", buildPrompt(document, request));
-            requestBody.put("max_tokens", maxTokens);
-            requestBody.put("temperature", temperature);
+            logger.info("Using standard model configuration for: {}", model);
+
+            if (aiApiUrl.contains("openai.com")) {
+                List<Map<String, String>> messages = new ArrayList<>();
+                messages.add(Map.of("role", "system", "content", "You are an educational question generator that creates precise, well-formatted JSON output."));
+                messages.add(Map.of("role", "user", "content", buildPrompt(document, request)));
+                requestBody.put("messages", messages);
+                requestBody.put("temperature", temperature);
+                requestBody.put("max_tokens", maxTokens);
+            } else {
+                requestBody.put("prompt", buildPrompt(document, request));
+                requestBody.put("max_tokens", maxTokens);
+                requestBody.put("temperature", temperature);
+            }
         }
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
         try {
+            logger.info("Sending request to AI API: {}", aiApiUrl);
             ResponseEntity<Map> response = restTemplate.postForEntity(aiApiUrl, entity, Map.class);
+
+            // Remove or comment out this debug print in production
+            // System.out.println(response.getBody());
 
             if (!response.getStatusCode().is2xxSuccessful()) {
                 logger.error("AI API returned non-successful status: {}", response.getStatusCode());
@@ -170,13 +239,84 @@ public class QuestionGenerationServiceImplementation implements QuestionGenerati
             }
 
             String aiResponse = extractContentFromAiResponse(response.getBody());
-            return parseQuestionsFromAiResponse(aiResponse);
+            List<GeneratedQuestionDto> questions = parseQuestionsFromAiResponse(aiResponse);
+
+            logger.info("Successfully parsed {} questions from AI response", questions.size());
+            return questions;
+
         } catch (Exception e) {
             logger.error("Error in AI API communication: {}", e.getMessage(), e);
             return List.of();
         }
     }
+    private String buildO1Prompt(Document document, GenerateQuestionsRequest request) {
+        String documentContent;
+        try {
+            documentContent = documentService.getDocumentContent(document);
+        } catch (Exception e) {
+            logger.error("Failed to get document content: {}", e.getMessage(), e);
+            documentContent = "Document content unavailable.";
+        }
 
+        String language = (request.getLanguage() != null && !request.getLanguage().isEmpty())
+                ? request.getLanguage() : "English";
+
+        var questionRules = getQuestionRules(request);
+        boolean includeAnswers = request.getIncludeAnswers() != null ? request.getIncludeAnswers() : true;
+
+        return String.format("""
+        I am an expert educational question generator. I need to create high-quality assessment questions based on educational content.
+        
+        TASK ANALYSIS:
+        - I need to generate exactly %d questions
+        - Difficulty level: %s
+        - Language: %s
+        - Question types to create: %s
+        
+        STEP-BY-STEP APPROACH:
+        1. First, I will carefully analyze the educational content to identify key concepts, learning objectives, and important facts
+        2. Then, I will determine which concepts are most suitable for each question type requested
+        3. For each question, I will ensure it tests understanding at the %s difficulty level
+        4. I will create questions that are pedagogically sound, clear, and unambiguous
+        5. Finally, I will format everything as valid JSON
+        
+        QUESTION TYPE REQUIREMENTS:
+        %s
+        
+        QUALITY STANDARDS:
+        - Questions must be directly based on the provided content
+        - Each question should test a specific learning objective
+        - Language should be appropriate for the %s difficulty level
+        - All questions must be in %s language
+        - %s
+        
+        OUTPUT REQUIREMENTS:
+        I must return ONLY a valid JSON array with this exact structure:
+        [
+          {
+            "text": "Clear, specific question text",
+            "type": "MULTIPLE_CHOICE|TRUE_FALSE|FILL_IN_THE_BLANK",%s
+          }
+        ]
+        
+        CRITICAL: Return ONLY the JSON array, no explanations, no additional text, no markdown formatting.
+        
+        EDUCATIONAL CONTENT TO ANALYZE:
+        %s
+        """,
+                request.getQuestionCount(),
+                request.getDifficultyLevel(),
+                language,
+                String.join(", ", request.getQuestionTypes()),
+                request.getDifficultyLevel().toLowerCase(),
+                questionRules,
+                request.getDifficultyLevel().toLowerCase(),
+                language,
+                includeAnswers ? "Each question must include appropriate answer options with correct answers clearly marked" : "Do not include answer options - generate questions only",
+                includeAnswers ? "\n            \"answers\": [{\"text\": \"Answer text\", \"isCorrect\": true/false}]" : "",
+                documentContent
+        );
+    }
     private String buildPrompt(Document document, GenerateQuestionsRequest request) {
         String documentContent;
         try {
